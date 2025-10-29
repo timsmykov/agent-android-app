@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI Chat Voice</string>
+    <string name="send">Send</string>
+    <string name="mic">Mic</string>
+    <string name="type_message">Введите сообщение…</string>
+    <string name="listening">Слушаю… говорите</string>
+    <string name="speaking">Озвучиваю ответ…</string>
+    <string name="thinking">Думаю…</string>
+    <string name="cancel">Отмена</string>
+    <string name="permission_mic_rationale">Нужно разрешение на запись аудио для голосового режима.</string>
+    <string name="ok">ОК</string>
+    <string name="error">Ошибка</string>
+    <string name="status_ok">OK</string>
+    <string name="status_error">Ошибка</string>
+    <string name="http_code">Код HTTP: %1$d</string>
+    <string name="ghost_hint">говорите…</string>
+    <string name="cmd_plan">/plan</string>
+    <string name="cmd_summarize">/summarize</string>
+</resources>
