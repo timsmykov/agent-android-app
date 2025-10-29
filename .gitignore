@@ -1,0 +1,12 @@
+.gradle/
+.gradle-home/
+.idea/
+local.properties
+/build/
+app/build/
+/gradle-8.7/
+gradle-8.7-bin.zip
+jdk-17.0.11+9/
+temurin17.tar.gz
+*.iml
+.DS_Store

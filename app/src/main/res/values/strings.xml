@@ -17,4 +17,10 @@
     <string name="ghost_hint">говорите…</string>
     <string name="cmd_plan">/plan</string>
     <string name="cmd_summarize">/summarize</string>
+    <string name="voice_not_supported">Голосовой ввод не поддерживается на этом устройстве.</string>
+    <string name="voice_error">Не удалось распознать речь.</string>
+    <string name="send_failed">Не удалось отправить сообщение. Попробуйте ещё раз.</string>
+    <string name="voice_permission_rationale">Нужно разрешение микрофона для голосового режима.</string>
+    <string name="grant">Разрешить</string>
+    <string name="dismiss">Закрыть</string>
 </resources>

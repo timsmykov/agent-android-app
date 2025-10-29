@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.AIChat" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.AIChat" parent="Theme.Material3.DayNight">
         <item name="android:windowBackground">@drawable/noise_background</item>
         <item name="android:navigationBarColor">@color/bg_dark</item>
         <item name="android:statusBarColor">@color/bg_dark</item>
         <item name="android:forceDarkAllowed">true</item>
         <item name="android:windowContentTransitions">true</item>
-        <item name="android:windowAnimationStyle">@style/AI.Window.Animation</item>
+        <item name="android:windowAnimationStyle">@style/AIWindowAnimation</item>
     </style>
 
-    <style name="AI.Window.Animation">
+    <style name="AIWindowAnimation">
         <item name="android:activityOpenEnterAnimation">@android:anim/fade_in</item>
         <item name="android:activityOpenExitAnimation">@android:anim/fade_out</item>
         <item name="android:activityCloseEnterAnimation">@android:anim/fade_in</item>

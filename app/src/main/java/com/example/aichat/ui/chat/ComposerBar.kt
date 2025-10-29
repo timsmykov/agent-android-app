@@ -1,0 +1,130 @@
+package com.example.aichat.ui.chat
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardVoice
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.aichat.R
+import com.example.aichat.ui.chat.ChatViewModel.VoiceState
+
+@Composable
+fun ComposerBar(
+    input: String,
+    ghostText: String?,
+    isSending: Boolean,
+    voiceState: VoiceState,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onStartVoice: () -> Unit,
+    onStopVoice: () -> Unit,
+    onCommandInsert: (String) -> Unit
+) {
+    val gradient = Brush.linearGradient(listOf(Color(0x66101A40), Color(0x663B143F)))
+    val planCommand = stringResource(id = R.string.cmd_plan)
+    val summarizeCommand = stringResource(id = R.string.cmd_summarize)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(gradient, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        OutlinedTextField(
+            value = input,
+            onValueChange = onTextChange,
+            placeholder = { Text(text = stringResource(id = R.string.type_message), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color(0x33181B22),
+                unfocusedContainerColor = Color(0x22181B22),
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {
+                        if (voiceState == VoiceState.Listening || voiceState == VoiceState.Thinking) onStopVoice() else onStartVoice()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardVoice,
+                            contentDescription = null,
+                            tint = when (voiceState) {
+                                VoiceState.Listening -> MaterialTheme.colorScheme.secondary
+                                VoiceState.Thinking -> MaterialTheme.colorScheme.primary
+                                VoiceState.Speaking -> MaterialTheme.colorScheme.primary
+                                VoiceState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                    val canSend = input.isNotBlank() && !isSending
+                    IconButton(onClick = { if (canSend) onSend() }, enabled = canSend) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = null,
+                            tint = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        )
+
+        AnimatedVisibility(visible = !ghostText.isNullOrBlank(), enter = fadeIn(), exit = fadeOut()) {
+            Text(
+                text = ghostText.orEmpty(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CommandChip(text = planCommand, onClick = { onCommandInsert(planCommand) })
+            CommandChip(text = summarizeCommand, onClick = { onCommandInsert(summarizeCommand) })
+        }
+    }
+}
+
+@Composable
+private fun CommandChip(text: String, onClick: () -> Unit) {
+    ElevatedButton(
+        onClick = onClick,
+        colors = ButtonDefaults.elevatedButtonColors(containerColor = Color(0x441C1F2A)),
+        modifier = Modifier
+    ) {
+        Text(text = text, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
