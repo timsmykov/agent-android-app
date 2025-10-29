@@ -9,21 +9,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 private val DarkPalette = darkColorScheme(
-    primary = Color(0xFF5B6CFF),
-    onPrimary = Color(0xFFFFFFFF),
-    secondary = Color(0xFFFF4FD8),
-    onSecondary = Color(0xFFFFFFFF),
-    background = Color(0xFF0E0F12),
-    onBackground = Color(0xFFECECEC),
-    surface = Color(0x331FFFFFFF),
-    onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0x1A5B6CFF),
-    onSurfaceVariant = Color(0xFFB8C1FF),
-    error = Color(0xFFFF4757),
-    onError = Color(0xFFFFFFFF)
+    primary = Color(0xFF7C5CFF),
+    onPrimary = Color(0xFF0B0618),
+    secondary = Color(0xFFFF6FDB),
+    onSecondary = Color(0xFF0B0618),
+    tertiary = Color(0xFF5BE7FF),
+    onTertiary = Color(0xFF00131A),
+    background = Color(0xFF05060B),
+    onBackground = Color(0xFFE6E6F3),
+    surface = Color(0xFF11121E),
+    onSurface = Color(0xFFE7E9FE),
+    surfaceVariant = Color(0x33223E7A),
+    onSurfaceVariant = Color(0xFFB4C5FF),
+    error = Color(0xFFFF596A),
+    onError = Color(0xFF2B0406)
 )
 
 private val AppShapes = Shapes(
@@ -52,8 +56,34 @@ fun AIChatTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography(),
+        typography = AppTypography,
         shapes = AppShapes,
         content = content
     )
 }
+
+private val BaseTypography = androidx.compose.material3.Typography()
+
+private val AppTypography = Typography(
+    headlineLarge = BaseTypography.headlineLarge.copy(
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = 36.sp
+    ),
+    headlineMedium = BaseTypography.headlineMedium.copy(
+        fontWeight = FontWeight.Medium,
+        lineHeight = 30.sp
+    ),
+    titleLarge = BaseTypography.titleLarge.copy(
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = 28.sp
+    ),
+    bodyLarge = BaseTypography.bodyLarge.copy(
+        lineHeight = 22.sp
+    ),
+    bodyMedium = BaseTypography.bodyMedium.copy(
+        lineHeight = 20.sp
+    ),
+    labelLarge = BaseTypography.labelLarge.copy(
+        fontWeight = FontWeight.Medium
+    )
+)

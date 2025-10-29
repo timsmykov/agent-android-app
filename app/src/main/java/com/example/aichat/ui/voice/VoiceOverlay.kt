@@ -8,8 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,10 +25,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.aichat.core.audio.AudioAnalyzer
 import com.example.aichat.ui.chat.ChatViewModel
+import com.example.aichat.R
 
 @Composable
 fun VoiceOverlay(
@@ -48,8 +48,8 @@ fun VoiceOverlay(
 
     Surface(
         tonalElevation = 12.dp,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        color = Color(0xAA11131C),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -89,12 +89,12 @@ fun VoiceOverlay(
 
             Text(
                 text = when (state) {
-                    ChatViewModel.VoiceState.Listening -> "Слушаю…"
-                    ChatViewModel.VoiceState.Thinking -> "Обрабатываю…"
-                    ChatViewModel.VoiceState.Speaking -> "Озвучиваю ответ…"
+                    ChatViewModel.VoiceState.Listening -> stringResource(id = R.string.listening)
+                    ChatViewModel.VoiceState.Thinking -> stringResource(id = R.string.thinking)
+                    ChatViewModel.VoiceState.Speaking -> stringResource(id = R.string.speaking)
                     ChatViewModel.VoiceState.Idle -> ghostText ?: ""
                 },
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
 

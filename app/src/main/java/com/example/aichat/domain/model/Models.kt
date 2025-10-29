@@ -16,7 +16,21 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val status: MessageStatus = MessageStatus.PENDING,
     val isSpeaking: Boolean = false,
-    val isGhost: Boolean = false
+    val isGhost: Boolean = false,
+    val summary: String? = null,
+    val plan: List<PlanItem> = emptyList(),
+    val sources: List<SourceLink> = emptyList()
+)
+
+data class PlanItem(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String,
+    val isDone: Boolean = false
+)
+
+data class SourceLink(
+    val title: String,
+    val url: String
 )
 
 @Serializable
@@ -47,7 +61,7 @@ data class WebhookPayload(
                     id = message.id,
                     text = message.text,
                     role = message.role.name.lowercase(),
-                    ts = 0L
+                    ts = message.timestamp
                 ),
                 meta = PayloadMeta(
                     client = "android",
@@ -65,5 +79,43 @@ data class WebhookResponse(
     val ok: Boolean? = null,
     val status: String? = null,
     val message: String? = null,
+    val result: WorkflowResult? = null,
+    val data: WorkflowResult? = null,
+    val choices: List<WorkflowResult>? = null,
     val httpCode: Int = 0
+) {
+    val primaryResult: WorkflowResult?
+        get() = result ?: data ?: choices?.firstOrNull()
+
+    fun resolveText(): String? {
+        val candidate = listOfNotNull(
+            message,
+            primaryResult?.reply,
+            primaryResult?.text,
+            status
+        ).firstOrNull { !it.isNullOrBlank() }
+        return candidate?.ifBlank { null }
+    }
+}
+
+@Serializable
+data class WorkflowResult(
+    val reply: String? = null,
+    val text: String? = null,
+    val summary: String? = null,
+    val plan: List<WorkflowPlanItem>? = null,
+    val sources: List<WorkflowSource>? = null
+)
+
+@Serializable
+data class WorkflowPlanItem(
+    val title: String,
+    @SerialName("isDone")
+    val done: Boolean? = null
+)
+
+@Serializable
+data class WorkflowSource(
+    val title: String,
+    val url: String
 )
