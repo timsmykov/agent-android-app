@@ -26,7 +26,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -45,22 +44,22 @@ fun ComposerBar(
     onStopVoice: () -> Unit,
     onCommandInsert: (String) -> Unit
 ) {
-    val gradient = Brush.linearGradient(listOf(Color(0x66101A40), Color(0x663B143F)))
+    val background = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     val planCommand = stringResource(id = R.string.cmd_plan)
     val summarizeCommand = stringResource(id = R.string.cmd_summarize)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(gradient, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .background(background, RoundedCornerShape(22.dp))
+            .padding(horizontal = 16.dp, vertical = 16.dp)
     ) {
         OutlinedTextField(
             value = input,
             onValueChange = onTextChange,
             placeholder = { Text(text = stringResource(id = R.string.type_message), color = MaterialTheme.colorScheme.onSurfaceVariant) },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0x33181B22),
-                unfocusedContainerColor = Color(0x22181B22),
+                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f),
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                 cursorColor = MaterialTheme.colorScheme.primary,
@@ -122,7 +121,7 @@ fun ComposerBar(
 private fun CommandChip(text: String, onClick: () -> Unit) {
     ElevatedButton(
         onClick = onClick,
-        colors = ButtonDefaults.elevatedButtonColors(containerColor = Color(0x441C1F2A)),
+        colors = ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
         modifier = Modifier
     ) {
         Text(text = text, color = MaterialTheme.colorScheme.onSurface)
