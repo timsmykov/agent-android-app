@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "611670654610",
+    "project_id": "agent-7e031",
+    "storage_bucket": "agent-7e031.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:611670654610:android:5b1d9a87666f1460ccf04b",
+        "android_client_info": {
+          "package_name": "com.example.aichat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-gLMpZtLKRkgSRQpMPW7ab7o-jCP6IXQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
