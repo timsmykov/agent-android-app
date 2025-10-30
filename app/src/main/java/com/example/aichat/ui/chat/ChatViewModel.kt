@@ -19,6 +19,8 @@ import com.example.aichat.core.audio.VoiceActivityDetector
 import com.example.aichat.domain.model.ChatMessage
 import com.example.aichat.domain.model.MessageStatus
 import com.example.aichat.domain.model.Role
+import com.example.aichat.domain.model.PlanItem
+import com.example.aichat.domain.model.SourceLink
 import com.example.aichat.domain.model.WebhookResponse
 import com.example.aichat.domain.usecase.SendMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -224,14 +226,33 @@ class ChatViewModel @Inject constructor(
 
     private fun handleSuccess(messageId: String, response: WebhookResponse) {
         updateMessage(messageId) { copy(status = MessageStatus.SENT) }
-        val agentText = response.message?.takeIf { it.isNotBlank() }
-            ?: response.status?.takeIf { it.isNotBlank() }
-            ?: "HTTP ${response.httpCode}"
+        val resolvedText = response.resolveText() ?: "HTTP ${response.httpCode}"
+        val workflow = response.primaryResult
+        val plan = workflow?.plan.orEmpty()
+            .mapNotNull { item ->
+                val title = item.title.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                PlanItem(
+                    title = title,
+                    isDone = item.done == true
+                )
+            }
+        val sources = workflow?.sources.orEmpty()
+            .mapNotNull { source ->
+                val url = source.url.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val title = source.title.ifBlank { url }
+                SourceLink(
+                    title = title,
+                    url = url
+                )
+            }
 
         val agentMessage = ChatMessage(
             role = Role.AGENT,
-            text = agentText,
-            status = MessageStatus.RECEIVED
+            text = resolvedText,
+            status = MessageStatus.RECEIVED,
+            summary = workflow?.summary,
+            plan = plan,
+            sources = sources
         )
         appendMessage(agentMessage)
         updateState { copy(isSending = false, voiceState = VoiceState.Speaking) }

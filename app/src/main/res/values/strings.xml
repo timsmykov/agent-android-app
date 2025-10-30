@@ -23,4 +23,7 @@
     <string name="voice_permission_rationale">Нужно разрешение микрофона для голосового режима.</string>
     <string name="grant">Разрешить</string>
     <string name="dismiss">Закрыть</string>
+    <string name="voice_mode_idle">Включите голосовой режим</string>
+    <string name="voice_mode_title">Голосовой режим</string>
+    <string name="voice_mode_subtitle">Общайтесь голосом и получайте ответы из workflow n8n</string>
 </resources>

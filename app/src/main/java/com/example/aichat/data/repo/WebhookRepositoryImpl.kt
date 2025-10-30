@@ -6,6 +6,7 @@ import com.example.aichat.data.api.ApiService
 import com.example.aichat.domain.model.ChatMessage
 import com.example.aichat.domain.model.WebhookPayload
 import com.example.aichat.domain.model.WebhookResponse
+import com.example.aichat.domain.model.WorkflowResult
 import com.example.aichat.domain.repo.WebhookRepository
 import javax.inject.Inject
 import kotlinx.serialization.SerializationException
@@ -51,8 +52,14 @@ class WebhookRepositoryImpl @Inject constructor(
         val dto = json.decodeFromJsonElement(WebhookResponse.serializer(), element)
         dto.copy(httpCode = code)
     } catch (ex: SerializationException) {
-        Timber.w(ex, "Invalid webhook JSON")
-        null
+        Timber.w(ex, "Invalid webhook JSON, trying fallback")
+        try {
+            val result = json.decodeFromJsonElement(WorkflowResult.serializer(), element)
+            WebhookResponse(result = result, httpCode = code, ok = true)
+        } catch (inner: SerializationException) {
+            Timber.w(inner, "Unable to parse webhook payload")
+            null
+        }
     }
 
     class HttpException(val code: Int, val body: String) : Exception("HTTP $code: $body")
