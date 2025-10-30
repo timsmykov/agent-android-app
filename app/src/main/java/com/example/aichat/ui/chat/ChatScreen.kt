@@ -38,6 +38,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,21 +93,38 @@ fun ChatScreen(
     ) {
         AuroraBackdrop(modifier = Modifier.fillMaxSize())
 
+        val isVoiceMode = uiState.mode == ChatViewModel.InteractionMode.Voice
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
-            Column(modifier = Modifier.weight(1f, fill = true)) {
-                AssistantHeader(
-                    mode = uiState.mode,
-                    onModeChange = viewModel::onModeSelected,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            AssistantHeader(
+                mode = uiState.mode,
+                onModeChange = viewModel::onModeSelected,
+                onNewChat = { viewModel.resetChat() },
+                modifier = Modifier.fillMaxWidth()
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
+            if (isVoiceMode) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = true),
+                    contentAlignment = Alignment.Center
+                ) {
+                    VoiceModePanel(
+                        state = uiState.voiceState,
+                        frame = voiceFrame,
+                        onHoldStart = viewModel::onVoiceHoldStart,
+                        onHoldEnd = viewModel::onVoiceHoldEnd
+                    )
+                }
+            } else {
                 ChatList(
                     messages = uiState.messages,
                     modifier = Modifier
@@ -114,36 +132,24 @@ fun ChatScreen(
                         .padding(top = 12.dp),
                     onRetry = viewModel::retry
                 )
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            val isVoiceMode = uiState.mode == ChatViewModel.InteractionMode.Voice
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isVoiceMode) Color(0x66111A2C) else Color(0x33131828)
-                ),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-            ) {
-                Column(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (isVoiceMode) 24.dp else 18.dp)
+                        .navigationBarsPadding(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0x33131828)
+                    ),
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                 ) {
-                    if (isVoiceMode) {
-                        VoiceModePanel(
-                            state = uiState.voiceState,
-                            frame = voiceFrame,
-                            transcript = uiState.ghostText,
-                            onHoldStart = viewModel::onVoiceHoldStart,
-                            onHoldEnd = viewModel::onVoiceHoldEnd
-                        )
-                    } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
                         ComposerBar(
                             input = uiState.input,
                             ghostText = uiState.ghostText,
@@ -191,15 +197,28 @@ fun ChatScreen(
 private fun AssistantHeader(
     mode: ChatViewModel.InteractionMode,
     onModeChange: (ChatViewModel.InteractionMode) -> Unit,
+    onNewChat: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        Text(
-            text = stringResource(id = R.string.app_name),
-            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp, fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(id = R.string.app_name),
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp, fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+            )
+
+            if (mode == ChatViewModel.InteractionMode.Chat) {
+                TextButton(onClick = onNewChat) {
+                    Text(text = stringResource(id = R.string.new_chat))
+                }
+            }
+        }
 
         ModeToggle(mode = mode, onModeChange = onModeChange)
     }
@@ -251,94 +270,18 @@ private fun ModeToggle(
 private fun VoiceModePanel(
     state: ChatViewModel.VoiceState,
     frame: AudioAnalyzer.AudioFrame,
-    transcript: String?,
     onHoldStart: () -> Unit,
     onHoldEnd: (Boolean) -> Unit
 ) {
-    val statusText = when (state) {
-        ChatViewModel.VoiceState.Idle -> stringResource(id = R.string.voice_hold_hint)
-        ChatViewModel.VoiceState.Listening -> stringResource(id = R.string.voice_release_hint)
-        ChatViewModel.VoiceState.Thinking -> stringResource(id = R.string.thinking)
-        ChatViewModel.VoiceState.Speaking -> stringResource(id = R.string.speaking)
-    }
-
-    Box(
+    VoiceHoldButton(
+        state = state,
+        frame = frame,
+        onPressStart = onHoldStart,
+        onPressEnd = { onHoldEnd(false) },
+        onPressCancel = { onHoldEnd(true) },
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(36.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF101223),
-                        Color(0xFF1A213A),
-                        Color(0xFF111525)
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset(720f, 860f)
-                )
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.12f),
-                        Color.White.copy(alpha = 0.04f)
-                    )
-                ),
-                shape = RoundedCornerShape(36.dp)
-            )
-            .padding(horizontal = 24.dp, vertical = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.voice_panel_title),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
-                color = Color.White.copy(alpha = 0.9f),
-                textAlign = TextAlign.Center
-            )
-
-            VoiceOrb(
-                state = state,
-                frame = frame,
-                modifier = Modifier.size(220.dp)
-            )
-
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            AnimatedVisibility(visible = !transcript.isNullOrBlank(), enter = fadeIn(), exit = fadeOut()) {
-                Text(
-                    text = transcript.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.9f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                )
-            }
-
-            VoiceHoldButton(
-                state = state,
-                frame = frame,
-                onPressStart = onHoldStart,
-                onPressEnd = { onHoldEnd(false) },
-                onPressCancel = { onHoldEnd(true) },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-        }
-    }
+            .size(240.dp)
+    )
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -353,9 +296,6 @@ private fun VoiceHoldButton(
 ) {
     var isPressed by remember { mutableStateOf(false) }
 
-    val haloTarget = (if (isPressed) 0.55f else 0.28f) + frame.amplitude * 0.35f
-    val haloAlpha by animateFloatAsState(targetValue = haloTarget.coerceIn(0.25f, 0.9f), label = "voiceHoldHalo")
-
     val scaleTarget = when {
         isPressed -> 1.08f
         state == ChatViewModel.VoiceState.Listening || state == ChatViewModel.VoiceState.Thinking -> 1.04f
@@ -363,40 +303,24 @@ private fun VoiceHoldButton(
     }
     val scale by animateFloatAsState(targetValue = scaleTarget, label = "voiceHoldScale")
 
+    val displayState = when {
+        isPressed -> ChatViewModel.VoiceState.Listening
+        else -> state
+    }
+
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .size(172.dp)
-                .graphicsLayer { alpha = haloAlpha }
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0x805E6FFF), Color.Transparent)
-                    ),
-                    shape = CircleShape
-                )
-        )
-
-        Box(
-            modifier = Modifier
-                .size(120.dp)
+                .size(220.dp)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 }
                 .clip(CircleShape)
-                .border(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.22f),
-                            Color.White.copy(alpha = 0.05f)
-                        )
-                    ),
-                    shape = CircleShape
-                )
+                .border(width = 1.dp, color = Color.White.copy(alpha = 0.16f), shape = CircleShape)
                 .background(Color.Transparent)
                 .pointerInteropFilter { event: MotionEvent ->
                     when (event.actionMasked) {
@@ -427,7 +351,7 @@ private fun VoiceHoldButton(
                 }
         ) {
             VoiceOrb(
-                state = state,
+                state = displayState,
                 frame = frame,
                 modifier = Modifier.fillMaxSize()
             )

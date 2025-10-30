@@ -31,7 +31,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -115,22 +114,6 @@ fun VoiceOrb(
         label = "voiceOrbCentroid"
     )
     val infinite = rememberInfiniteTransition(label = "voiceOrb")
-    val shimmer by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = when (state) {
-                    ChatViewModel.VoiceState.Idle -> 9000
-                    ChatViewModel.VoiceState.Listening -> 4200
-                    ChatViewModel.VoiceState.Thinking -> 5400
-                    ChatViewModel.VoiceState.Speaking -> 5000
-                },
-                easing = LinearEasing
-            )
-        ),
-        label = "voiceOrbShimmer"
-    )
     val ripple by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -210,27 +193,6 @@ fun VoiceOrb(
                 radius = radius * (1.12f + amplitude * 0.38f)
             )
         )
-
-        drawIntoCanvas { canvas ->
-            canvas.save()
-            canvas.translate(center.x, center.y)
-            canvas.rotate(shimmer)
-            canvas.translate(-center.x, -center.y)
-            val sweep = Brush.sweepGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.55f),
-                    Color.Transparent,
-                    Color.White.copy(alpha = 0.25f),
-                    Color.Transparent
-                )
-            )
-            drawCircle(
-                brush = sweep,
-                radius = radius * 0.96f,
-                center = center
-            )
-            canvas.restore()
-        }
 
         drawCircle(
             brush = Brush.radialGradient(

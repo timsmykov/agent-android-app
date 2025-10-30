@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
 import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
@@ -50,7 +49,8 @@ class ChatViewModel @Inject constructor(
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
-    private val sessionId: String = UUID.randomUUID().toString()
+    private fun newSessionId(): String = UUID.randomUUID().toString()
+    private var sessionId: String = newSessionId()
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -70,15 +70,10 @@ class ChatViewModel @Inject constructor(
     val voiceFrame: StateFlow<AudioAnalyzer.AudioFrame> = _voiceFrame.asStateFlow()
 
     private var speechRecognizer: SpeechRecognizer? = null
-    private var textToSpeech: TextToSpeech? = null
     private var analyzerJob: Job? = null
 
     private var voiceBuffer = StringBuilder()
     private var voiceSubmitted = false
-
-    init {
-        initTextToSpeech()
-    }
 
     fun askForMicrophonePermission() {
         viewModelScope.launch {
@@ -98,6 +93,26 @@ class ChatViewModel @Inject constructor(
 
     fun onMessageChanged(value: String) {
         updateState { copy(input = value) }
+    }
+
+    fun resetChat(preserveMode: Boolean = true) {
+        stopAnalyzer()
+        speechRecognizer?.cancel()
+        voiceBuffer.clear()
+        voiceSubmitted = false
+        _messages.clear()
+        sessionId = newSessionId()
+        _voiceFrame.value = AudioAnalyzer.AudioFrame(0f, 0f)
+        updateState {
+            copy(
+                messages = emptyList(),
+                input = "",
+                isSending = false,
+                ghostText = null,
+                voiceState = VoiceState.Idle,
+                mode = if (preserveMode) mode else InteractionMode.Chat
+            )
+        }
     }
 
     fun sendMessage() {
@@ -228,6 +243,9 @@ class ChatViewModel @Inject constructor(
     }
 
     fun onVoiceHoldStart() {
+        if (_uiState.value.mode == InteractionMode.Voice) {
+            resetChat()
+        }
         startVoiceInput()
     }
 
@@ -248,11 +266,7 @@ class ChatViewModel @Inject constructor(
         updateState { copy(mode = mode) }
         when (mode) {
             InteractionMode.Chat -> cancelVoiceInput()
-            InteractionMode.Voice -> {
-                voiceBuffer.clear()
-                voiceSubmitted = false
-                updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
-            }
+            InteractionMode.Voice -> resetChat()
         }
     }
 
@@ -287,8 +301,7 @@ class ChatViewModel @Inject constructor(
             sources = sources
         )
         appendMessage(agentMessage)
-        updateState { copy(isSending = false, voiceState = VoiceState.Speaking) }
-        speak(agentMessage.text)
+        updateState { copy(isSending = false, voiceState = VoiceState.Idle) }
     }
 
     private fun handleError(messageId: String, throwable: Throwable) {
@@ -312,38 +325,6 @@ class ChatViewModel @Inject constructor(
 
     private fun updateState(reducer: ChatUiState.() -> ChatUiState) {
         _uiState.value = _uiState.value.reducer()
-    }
-
-    private fun initTextToSpeech() {
-        textToSpeech = TextToSpeech(context) { status ->
-            if (status != TextToSpeech.SUCCESS) {
-                Timber.e("TTS init failed: $status")
-            } else {
-                textToSpeech?.language = Locale("ru")
-                textToSpeech?.setSpeechRate(1.02f)
-            }
-        }
-    }
-
-    private fun speak(text: String) {
-        val tts = textToSpeech ?: return
-        val params = Bundle().apply {
-            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UUID.randomUUID().toString())
-        }
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, params.getString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID))
-        tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {
-                updateState { copy(voiceState = VoiceState.Speaking) }
-            }
-
-            override fun onDone(utteranceId: String?) {
-                updateState { copy(voiceState = VoiceState.Idle) }
-            }
-
-            override fun onError(utteranceId: String?) {
-                updateState { copy(voiceState = VoiceState.Idle) }
-            }
-        })
     }
 
     private fun startAnalyzer() {
@@ -418,7 +399,6 @@ class ChatViewModel @Inject constructor(
         super.onCleared()
         stopAnalyzer()
         speechRecognizer?.destroy()
-        textToSpeech?.shutdown()
     }
 
     data class ChatUiState(
