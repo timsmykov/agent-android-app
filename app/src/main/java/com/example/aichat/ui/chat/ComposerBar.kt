@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,8 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,12 +38,9 @@ fun ComposerBar(
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     onStartVoice: () -> Unit,
-    onStopVoice: () -> Unit,
-    onCommandInsert: (String) -> Unit
+    onStopVoice: () -> Unit
 ) {
     val background = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    val planCommand = stringResource(id = R.string.cmd_plan)
-    val summarizeCommand = stringResource(id = R.string.cmd_summarize)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -106,24 +100,5 @@ fun ComposerBar(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CommandChip(text = planCommand, onClick = { onCommandInsert(planCommand) })
-            CommandChip(text = summarizeCommand, onClick = { onCommandInsert(summarizeCommand) })
-        }
-    }
-}
-
-@Composable
-private fun CommandChip(text: String, onClick: () -> Unit) {
-    ElevatedButton(
-        onClick = onClick,
-        colors = ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-        modifier = Modifier
-    ) {
-        Text(text = text, color = MaterialTheme.colorScheme.onSurface)
     }
 }

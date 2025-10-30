@@ -99,15 +99,6 @@ class ChatViewModel @Inject constructor(
         updateState { copy(input = value) }
     }
 
-    fun insertCommand(command: String) {
-        val newValue = when (command) {
-            "/plan" -> "\n1. [ ] "
-            "/summarize" -> "Пожалуйста, сделай сводку пунктами."
-            else -> command
-        }
-        updateState { copy(input = newValue) }
-    }
-
     fun sendMessage() {
         val text = _uiState.value.input.trim()
         if (text.isEmpty()) return
@@ -222,6 +213,15 @@ class ChatViewModel @Inject constructor(
 
     fun onComposerGhostConsumed() {
         updateState { copy(ghostText = null) }
+    }
+
+    fun onModeSelected(mode: InteractionMode) {
+        if (_uiState.value.mode == mode) return
+        updateState { copy(mode = mode) }
+        when (mode) {
+            InteractionMode.Chat -> stopVoiceInput()
+            InteractionMode.Voice -> startVoiceInput()
+        }
     }
 
     private fun handleSuccess(messageId: String, response: WebhookResponse) {
@@ -385,7 +385,8 @@ class ChatViewModel @Inject constructor(
         val isSending: Boolean = false,
         val ghostText: String? = null,
         val showPermissionRationale: Boolean = false,
-        val voiceState: VoiceState = VoiceState.Idle
+        val voiceState: VoiceState = VoiceState.Idle,
+        val mode: InteractionMode = InteractionMode.Chat
     )
 
     sealed class UiEvent {
@@ -393,6 +394,7 @@ class ChatViewModel @Inject constructor(
     }
 
     enum class VoiceState { Idle, Listening, Thinking, Speaking }
+    enum class InteractionMode { Chat, Voice }
 }
 
 val ChatViewModel.hasMicrophonePermissionState: StateFlow<Boolean>

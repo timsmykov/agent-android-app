@@ -5,10 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,30 +16,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -89,7 +80,11 @@ fun ChatScreen(
                 .padding(horizontal = 20.dp)
         ) {
             Column(modifier = Modifier.weight(1f, fill = true)) {
-                AssistantHeader(modifier = Modifier.fillMaxWidth())
+                AssistantHeader(
+                    mode = uiState.mode,
+                    onModeChange = viewModel::onModeSelected,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -127,14 +122,7 @@ fun ChatScreen(
                         onTextChange = viewModel::onMessageChanged,
                         onSend = viewModel::sendMessage,
                         onStartVoice = viewModel::startVoiceInput,
-                        onStopVoice = viewModel::stopVoiceInput,
-                        onCommandInsert = viewModel::insertCommand
-                    )
-
-                    VoiceActionRow(
-                        state = uiState.voiceState,
-                        onStart = viewModel::startVoiceInput,
-                        onStop = viewModel::stopVoiceInput
+                        onStopVoice = viewModel::stopVoiceInput
                     )
                 }
             }
@@ -167,80 +155,12 @@ fun ChatScreen(
         }
     }
 }
-
 @Composable
-private fun VoiceActionRow(
-    state: ChatViewModel.VoiceState,
-    onStart: () -> Unit,
-    onStop: () -> Unit
+private fun AssistantHeader(
+    mode: ChatViewModel.InteractionMode,
+    onModeChange: (ChatViewModel.InteractionMode) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val isActive = state != ChatViewModel.VoiceState.Idle
-    val gradient = if (isActive) {
-        Brush.radialGradient(
-            colors = listOf(MaterialTheme.colorScheme.secondary, Color(0x00FF6FDB)),
-            radius = 220f
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
-        )
-    }
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        val action = when (state) {
-            ChatViewModel.VoiceState.Listening, ChatViewModel.VoiceState.Thinking -> onStop
-            ChatViewModel.VoiceState.Speaking -> onStop
-            ChatViewModel.VoiceState.Idle -> onStart
-        }
-
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .shadow(elevation = if (isActive) 20.dp else 12.dp, shape = CircleShape, clip = false)
-                .clip(CircleShape)
-                .background(gradient)
-                .padding(4.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF0C0E1A))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { action() }
-        ) {
-            val icon = when (state) {
-                ChatViewModel.VoiceState.Listening, ChatViewModel.VoiceState.Thinking -> Icons.Rounded.Stop
-                ChatViewModel.VoiceState.Speaking -> Icons.Filled.GraphicEq
-                ChatViewModel.VoiceState.Idle -> Icons.Rounded.Mic
-            }
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(40.dp)
-                    .padding(6.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = when (state) {
-                ChatViewModel.VoiceState.Listening -> stringResource(id = R.string.listening)
-                ChatViewModel.VoiceState.Thinking -> stringResource(id = R.string.thinking)
-                ChatViewModel.VoiceState.Speaking -> stringResource(id = R.string.speaking)
-                ChatViewModel.VoiceState.Idle -> stringResource(id = R.string.voice_mode_idle)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun AssistantHeader(modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(
             text = stringResource(id = R.string.app_name),
@@ -249,22 +169,46 @@ private fun AssistantHeader(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
         )
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0x3319243E)),
-            shape = RoundedCornerShape(20.dp)
+        ModeToggle(mode = mode, onModeChange = onModeChange)
+    }
+}
+
+@Composable
+private fun ModeToggle(
+    mode: ChatViewModel.InteractionMode,
+    onModeChange: (ChatViewModel.InteractionMode) -> Unit
+) {
+    val items = listOf(
+        ChatViewModel.InteractionMode.Chat to stringResource(id = R.string.mode_chat),
+        ChatViewModel.InteractionMode.Voice to stringResource(id = R.string.mode_voice)
+    )
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0x33131828)),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                Text(
-                    text = stringResource(id = R.string.voice_mode_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = stringResource(id = R.string.voice_mode_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
+            items.forEachIndexed { index, item ->
+                val (value, label) = item
+                SegmentedButton(
+                    selected = mode == value,
+                    onClick = { onModeChange(value) },
+                    shape = SegmentedButtonDefaults.itemShape(index, items.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primary,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                        inactiveContainerColor = Color.Transparent,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
         }
     }
