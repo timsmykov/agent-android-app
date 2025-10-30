@@ -6,6 +6,15 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
+    id("com.google.firebase.appdistribution")
+}
+
+import java.util.Properties
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
 android {
@@ -26,6 +35,19 @@ android {
         buildConfigField("String", "N8N_MODE", "\"test\"")
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                val storeFilePath = keystoreProperties.getProperty("storeFile")
+                    ?: error("Missing storeFile in keystore.properties")
+                storeFile = rootProject.file(storeFilePath)
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -39,6 +61,9 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("String", "N8N_MODE", "\"prod\"")
+            if (keystoreProperties.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -70,6 +95,14 @@ android {
             "META-INF/LGPL2.1"
         )
     }
+}
+
+firebaseAppDistribution {
+    serviceCredentialsFile = rootProject.file("Agent Service Account.json").absolutePath
+    appId = project.findProperty("FIREBASE_APP_ID") as String? ?: "1:611670654610:android:5b1d9a87666f1460ccf04b"
+    (project.findProperty("FIREBASE_TESTERS") as String?)?.let { testers = it }
+    (project.findProperty("FIREBASE_GROUPS") as String?)?.let { groups = it }
+    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "Chat & voice mode toggle update"
 }
 
 dependencies {
