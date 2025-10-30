@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.aichat.R
@@ -141,27 +142,37 @@ fun VoiceOrb(
     }
     val scale = baseScale * (1f + amplitude * 0.18f) * breath
 
-    val gradientColors = when (state) {
+    val basePalette = when (state) {
         ChatViewModel.VoiceState.Idle -> listOf(
-            Color(0xFF33335A),
-            Color(0xFF21233F),
+            Color(0xFF2F3253),
+            Color(0xFF1F2141),
             Color(0xFF151728)
         )
         ChatViewModel.VoiceState.Listening -> listOf(
-            Color(0xFF6A7CFF),
-            Color(0xFF4B58FF),
+            Color(0xFF485BFF),
+            Color(0xFF3138FF),
             Color(0xFF181C36)
         )
         ChatViewModel.VoiceState.Thinking -> listOf(
-            Color(0xFFFF71E6),
-            Color(0xFF6D53FF),
+            Color(0xFF8A4BFF),
+            Color(0xFF5C2FFF),
             Color(0xFF231A40)
         )
         ChatViewModel.VoiceState.Speaking -> listOf(
-            Color(0xFFFF8FD9),
-            Color(0xFF6066FF),
+            Color(0xFFB95DF5),
+            Color(0xFF6654FF),
             Color(0xFF1F1B39)
         )
+    }
+    val accentColor = when (state) {
+        ChatViewModel.VoiceState.Idle -> Color(0xFF5B6CFF)
+        ChatViewModel.VoiceState.Listening -> Color(0xFF85A1FF)
+        ChatViewModel.VoiceState.Thinking -> Color(0xFFFF8FF0)
+        ChatViewModel.VoiceState.Speaking -> Color(0xFFFFA6EE)
+    }
+    val gradientColors = listOf(0.6f, 0.4f, 0.2f).mapIndexed { index, factor ->
+        val base = basePalette[index]
+        lerp(base, accentColor, (factor * amplitude + 0.1f).coerceIn(0f, 1f))
     }
 
     Canvas(
