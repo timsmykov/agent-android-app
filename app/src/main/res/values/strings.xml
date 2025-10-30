@@ -23,4 +23,7 @@
     <string name="dismiss">Закрыть</string>
     <string name="mode_chat">Чат</string>
     <string name="mode_voice">Голос</string>
+    <string name="voice_panel_title">Голосовой режим</string>
+    <string name="voice_hold_hint">Зажмите и говорите</string>
+    <string name="voice_release_hint">Отпустите, чтобы отправить</string>
 </resources>

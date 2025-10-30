@@ -74,6 +74,7 @@ class ChatViewModel @Inject constructor(
     private var analyzerJob: Job? = null
 
     private var voiceBuffer = StringBuilder()
+    private var voiceSubmitted = false
 
     init {
         initTextToSpeech()
@@ -198,17 +199,44 @@ class ChatViewModel @Inject constructor(
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
 
+        voiceBuffer.clear()
+        voiceSubmitted = false
         speechRecognizer?.startListening(recognizerIntent)
         startAnalyzer()
         setVoiceState(VoiceState.Listening)
     }
 
     fun stopVoiceInput() {
+        cancelVoiceInput()
+    }
+
+    fun cancelVoiceInput() {
         speechRecognizer?.stopListening()
         speechRecognizer?.cancel()
         stopAnalyzer()
         voiceBuffer.clear()
+        voiceSubmitted = true
         updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+    }
+
+    fun finishVoiceInput() {
+        if (voiceSubmitted && voiceBuffer.isEmpty()) {
+            updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+            return
+        }
+        submitVoiceMessage(force = true)
+    }
+
+    fun onVoiceHoldStart() {
+        startVoiceInput()
+    }
+
+    fun onVoiceHoldEnd(cancelled: Boolean) {
+        if (cancelled) {
+            cancelVoiceInput()
+        } else {
+            finishVoiceInput()
+        }
     }
 
     fun onComposerGhostConsumed() {
@@ -219,8 +247,12 @@ class ChatViewModel @Inject constructor(
         if (_uiState.value.mode == mode) return
         updateState { copy(mode = mode) }
         when (mode) {
-            InteractionMode.Chat -> stopVoiceInput()
-            InteractionMode.Voice -> startVoiceInput()
+            InteractionMode.Chat -> cancelVoiceInput()
+            InteractionMode.Voice -> {
+                voiceBuffer.clear()
+                voiceSubmitted = false
+                updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+            }
         }
     }
 
@@ -339,12 +371,22 @@ class ChatViewModel @Inject constructor(
         _voiceFrame.value = AudioAnalyzer.AudioFrame(0f, 0f)
     }
 
-    private fun submitVoiceMessage() {
+    private fun submitVoiceMessage(force: Boolean = false) {
         val text = voiceBuffer.toString().trim()
         if (text.isEmpty()) {
-            updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+            if (!force) {
+                updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+            }
+            if (force) {
+                speechRecognizer?.stopListening()
+                voiceBuffer.clear()
+                stopAnalyzer()
+                updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+            }
             return
         }
+        if (voiceSubmitted) return
+        voiceSubmitted = true
         speechRecognizer?.stopListening()
         updateState { copy(input = text, ghostText = null, voiceState = VoiceState.Thinking) }
         voiceBuffer.clear()

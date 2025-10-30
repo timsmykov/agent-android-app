@@ -51,11 +51,19 @@ data class WebhookPayload(
         val client: String,
         val sessionId: String,
         val device: String,
+        val userAgent: String,
         val lang: String
     )
 
     companion object {
         fun fromChatMessage(message: ChatMessage, sessionId: String, lang: String = "ru"): WebhookPayload {
+            val manufacturer = Build.MANUFACTURER?.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() }
+            val model = Build.MODEL.takeIf { it.isNotBlank() }
+            val deviceLabel = listOfNotNull(manufacturer, model)
+                .joinToString(separator = " ")
+                .ifBlank { "Android" }
+            val osVersion = Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString()
+            val userAgent = "Android/$osVersion (${deviceLabel})"
             return WebhookPayload(
                 message = PayloadMessage(
                     id = message.id,
@@ -66,7 +74,8 @@ data class WebhookPayload(
                 meta = PayloadMeta(
                     client = "android",
                     sessionId = sessionId,
-                    device = Build.MODEL.ifEmpty { "android" },
+                    device = deviceLabel,
+                    userAgent = userAgent,
                     lang = lang
                 )
             )
