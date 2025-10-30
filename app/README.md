@@ -23,7 +23,13 @@ URL и режим задаются через `BuildConfig`:
 - `BuildConfig.N8N_PROD_URL`
 - `BuildConfig.N8N_MODE` (`test` или `prod`)
 
-Изменить значения можно в `app/build.gradle.kts` (секция `defaultConfig` и `buildTypes`).
+По умолчанию режим — `test`. Чтобы собрать с продовым хуком, передайте свойство Gradle:
+
+```bash
+./gradlew assembleRelease -PN8N_MODE=prod
+```
+
+Изменить значения URL можно в `app/build.gradle.kts` (секция `defaultConfig`).
 
 ## Архитектура
 
@@ -42,4 +48,3 @@ URL и режим задаются через `BuildConfig`:
 ## Разрешения
 
 Приложение запрашивает `RECORD_AUDIO` во время работы голосового режима и отображает обоснование при отказе.
-

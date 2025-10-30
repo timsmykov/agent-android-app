@@ -17,6 +17,11 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+val resolvedN8nMode = (project.findProperty("N8N_MODE") as String?)
+    ?.lowercase()
+    ?.takeIf { it == "prod" || it == "test" }
+    ?: "test"
+
 android {
     namespace = "com.example.aichat"
     compileSdk = 35
@@ -32,7 +37,7 @@ android {
 
         buildConfigField("String", "N8N_TEST_URL", "\"https://timsmykov.app.n8n.cloud/webhook-test/a3b7e817-1b56-4722-8f9f-9266b7d91946\"")
         buildConfigField("String", "N8N_PROD_URL", "\"https://timsmykov.app.n8n.cloud/webhook/a3b7e817-1b56-4722-8f9f-9266b7d91946\"")
-        buildConfigField("String", "N8N_MODE", "\"test\"")
+        buildConfigField("String", "N8N_MODE", "\"$resolvedN8nMode\"")
     }
 
     signingConfigs {
@@ -51,7 +56,6 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
-            buildConfigField("String", "N8N_MODE", "\"test\"")
         }
         release {
             isMinifyEnabled = true
@@ -60,7 +64,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "N8N_MODE", "\"prod\"")
             if (keystoreProperties.isNotEmpty()) {
                 signingConfig = signingConfigs.getByName("release")
             }
