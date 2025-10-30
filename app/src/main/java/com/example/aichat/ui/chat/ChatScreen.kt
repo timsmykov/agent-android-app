@@ -47,7 +47,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -363,12 +362,6 @@ private fun AuroraBackdrop(modifier: Modifier = Modifier) {
             )
         }
 
-        Image(
-            painter = painterResource(id = R.drawable.noise_background),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize(),
-            alpha = 0.08f
-        )
+        // Noise overlay intentionally removed; Compose can't render layer-list drawables directly.
     }
 }
