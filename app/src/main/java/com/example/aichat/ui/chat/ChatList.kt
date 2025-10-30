@@ -260,21 +260,24 @@ private fun PlanRow(title: String, done: Boolean) {
 @Composable
 private fun SourceRow(source: SourceLink) {
     val uriHandler = LocalUriHandler.current
-    val annotated = remember(source) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val annotated = remember(source, primaryColor) {
         buildAnnotatedString {
-            pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, textDecoration = TextDecoration.Underline))
+            pushStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.SemiBold, textDecoration = TextDecoration.Underline))
             append(source.title.ifBlank { source.url })
             pop()
         }
     }
 
+    val bodySmall = MaterialTheme.typography.bodySmall
+
     Text(
         text = annotated,
-        style = MaterialTheme.typography.bodySmall,
+        style = bodySmall,
         modifier = Modifier
             .clip(MaterialTheme.shapes.small)
             .clickable { uriHandler.openUri(source.url) }
             .padding(vertical = 4.dp),
-        color = MaterialTheme.colorScheme.primary
+        color = primaryColor
     )
 }

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -82,7 +81,7 @@ fun ChatScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        AuroraBackdrop(modifier = Modifier.matchParentSize())
+        AuroraBackdrop(modifier = Modifier.fillMaxSize())
 
         Column(
             modifier = Modifier
@@ -326,7 +325,7 @@ private fun AuroraBackdrop(modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -338,7 +337,7 @@ private fun AuroraBackdrop(modifier: Modifier = Modifier) {
                 )
         )
 
-        Canvas(modifier = Modifier.matchParentSize()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
             drawCircle(
@@ -368,7 +367,7 @@ private fun AuroraBackdrop(modifier: Modifier = Modifier) {
             painter = painterResource(id = R.drawable.noise_background),
             contentDescription = null,
             modifier = Modifier
-                .matchParentSize(),
+                .fillMaxSize(),
             alpha = 0.08f
         )
     }
