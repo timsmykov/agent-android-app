@@ -8,7 +8,7 @@ uniform mat4 uMVPMatrix;
 uniform float uTime;
 uniform float uAmplitude;
 uniform float uCentroid;
-uniform float uMode; // 0 idle, 1 listening, 2 thinking, 3 speaking
+uniform float uMode; // 0 idle, 1 listening, 2 thinking
 
 // Varyings
 varying vec3 vNormal;

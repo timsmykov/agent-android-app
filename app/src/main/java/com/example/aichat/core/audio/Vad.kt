@@ -2,7 +2,9 @@ package com.example.aichat.core.audio
 
 import kotlin.math.max
 
-class VoiceActivityDetector {
+class VoiceActivityDetector(
+    private val config: Config = Config()
+) {
     private var state: State = State.Silence
     private var lastSpeechTimestamp: Long = 0L
 
@@ -19,8 +21,12 @@ class VoiceActivityDetector {
         lastSpeechTimestamp = 0L
     }
 
-    fun evaluate(amplitude: Float, timestamp: Long, startThreshold: Float = 0.02f, stopThreshold: Float = 0.01f, silenceTimeoutMs: Long = 700L): Detection {
+    fun evaluate(amplitude: Float, timestamp: Long): Detection {
         val clamped = max(0f, amplitude)
+        val startThreshold = config.startThreshold
+        val stopThreshold = config.stopThreshold
+        val silenceTimeoutMs = config.silenceTimeoutMs
+
         val nowSpeech = when (state) {
             State.Silence -> clamped >= startThreshold
             State.Speech -> clamped >= stopThreshold
@@ -48,4 +54,10 @@ class VoiceActivityDetector {
             ended = ended
         )
     }
+
+    data class Config(
+        val startThreshold: Float = 0.02f,
+        val stopThreshold: Float = 0.01f,
+        val silenceTimeoutMs: Long = 700L
+    )
 }

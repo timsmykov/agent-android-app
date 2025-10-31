@@ -38,20 +38,39 @@ class AudioAnalyzer(
         }
 
         val bufferSize = max(minBufferSize, SAMPLE_RATE)
-        val audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            bufferSize
-        )
+        val audioRecord = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                SAMPLE_RATE,
+                CHANNEL_CONFIG,
+                AUDIO_FORMAT,
+                bufferSize
+            )
+        } catch (ex: IllegalArgumentException) {
+            close(ex)
+            return@callbackFlow
+        } catch (ex: SecurityException) {
+            close(ex)
+            return@callbackFlow
+        }
 
         if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
             close(IllegalStateException("AudioRecord not initialized"))
             return@callbackFlow
         }
 
-        audioRecord.startRecording()
+        try {
+            audioRecord.startRecording()
+        } catch (ex: IllegalStateException) {
+            audioRecord.release()
+            close(ex)
+            return@callbackFlow
+        }
+        if (audioRecord.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            audioRecord.release()
+            close(IllegalStateException("AudioRecord failed to start recording"))
+            return@callbackFlow
+        }
 
         val pcmBuffer = ShortArray(bufferSize)
         val real = DoubleArray(nextPowerOfTwo(bufferSize))
@@ -60,7 +79,13 @@ class AudioAnalyzer(
         val job = launch(contextDispatcher) {
             while (true) {
                 val read = audioRecord.read(pcmBuffer, 0, pcmBuffer.size)
-                if (read <= 0) continue
+                if (read <= 0) {
+                    if (read == AudioRecord.ERROR_DEAD_OBJECT) {
+                        close(IllegalStateException("AudioRecord dead object"))
+                        break
+                    }
+                    continue
+                }
 
                 val amplitude = calculateRms(pcmBuffer, read)
 
@@ -81,7 +106,11 @@ class AudioAnalyzer(
 
         awaitClose {
             job.cancel()
-            audioRecord.stop()
+            runCatching {
+                if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    audioRecord.stop()
+                }
+            }
             audioRecord.release()
         }
     }

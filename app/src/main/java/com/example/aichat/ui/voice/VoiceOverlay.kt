@@ -33,11 +33,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.aichat.R
 import com.example.aichat.core.audio.AudioAnalyzer
 import com.example.aichat.ui.chat.ChatViewModel
+import kotlin.math.PI
+import kotlin.math.sin
 
 @Composable
 fun VoiceOverlay(
@@ -78,7 +84,6 @@ fun VoiceOverlay(
                 text = when (state) {
                     ChatViewModel.VoiceState.Listening -> stringResource(id = R.string.listening)
                     ChatViewModel.VoiceState.Thinking -> stringResource(id = R.string.thinking)
-                    ChatViewModel.VoiceState.Speaking -> stringResource(id = R.string.speaking)
                     ChatViewModel.VoiceState.Idle -> ghostText ?: ""
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -133,12 +138,20 @@ fun VoiceOrb(
         ),
         label = "voiceOrbBreath"
     )
+    val wavePhase by infinite.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "voiceOrbWave"
+    )
 
     val baseScale = when (state) {
         ChatViewModel.VoiceState.Idle -> 0.9f
         ChatViewModel.VoiceState.Listening -> 1.04f
         ChatViewModel.VoiceState.Thinking -> 1.0f
-        ChatViewModel.VoiceState.Speaking -> 1.06f
     }
     val scale = baseScale * (1f + amplitude * 0.18f) * breath
 
@@ -158,17 +171,11 @@ fun VoiceOrb(
             Color(0xFF5C2FFF),
             Color(0xFF231A40)
         )
-        ChatViewModel.VoiceState.Speaking -> listOf(
-            Color(0xFFB95DF5),
-            Color(0xFF6654FF),
-            Color(0xFF1F1B39)
-        )
     }
     val accentColor = when (state) {
         ChatViewModel.VoiceState.Idle -> Color(0xFF5B6CFF)
         ChatViewModel.VoiceState.Listening -> Color(0xFF85A1FF)
         ChatViewModel.VoiceState.Thinking -> Color(0xFFFF8FF0)
-        ChatViewModel.VoiceState.Speaking -> Color(0xFFFFA6EE)
     }
     val gradientColors = listOf(0.6f, 0.4f, 0.2f).mapIndexed { index, factor ->
         val base = basePalette[index]
@@ -183,6 +190,16 @@ fun VoiceOrb(
     ) {
         val radius = size.minDimension / 2f
         val center = Offset(size.width / 2f, size.height / 2f)
+        val orbPath = Path().apply {
+            addOval(
+                Rect(
+                    left = center.x - radius,
+                    top = center.y - radius,
+                    right = center.x + radius,
+                    bottom = center.y + radius
+                )
+            )
+        }
 
         drawCircle(
             brush = Brush.radialGradient(
@@ -216,9 +233,44 @@ fun VoiceOrb(
             )
         )
 
+        val supportsWave = state != ChatViewModel.VoiceState.Idle || amplitude > 0.08f
+        if (supportsWave) {
+            val waveHeight = radius * (0.1f + amplitude * 0.18f)
+            val waveBaseline = center.y + radius * (0.18f - amplitude * 0.25f)
+            val waveLength = radius * 1.4f
+            val step = radius / 16f
+            val startX = center.x - radius * 1.4f
+            val endX = center.x + radius * 1.4f
+            val wavePath = Path().apply {
+                moveTo(startX, size.height)
+                var x = startX
+                while (x <= endX) {
+                    val progress = (x - startX) / waveLength
+                    val angle = (progress + wavePhase) * 2f * PI.toFloat()
+                    val y = waveBaseline + sin(angle) * waveHeight
+                    lineTo(x, y)
+                    x += step
+                }
+                lineTo(endX, size.height)
+                close()
+            }
+            clipPath(orbPath, clipOp = ClipOp.Intersect) {
+                drawPath(
+                    path = wavePath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.55f + amplitude * 0.25f),
+                            accentColor.copy(alpha = 0.0f)
+                        ),
+                        startY = waveBaseline - waveHeight * 2f,
+                        endY = waveBaseline + waveHeight * 3f
+                    )
+                )
+            }
+        }
+
         val rippleAlpha = when (state) {
-            ChatViewModel.VoiceState.Listening,
-            ChatViewModel.VoiceState.Speaking -> (1f - ripple) * (0.25f + amplitude * 0.3f)
+            ChatViewModel.VoiceState.Listening -> (1f - ripple) * (0.25f + amplitude * 0.3f)
             else -> 0f
         }
         if (rippleAlpha > 0.01f) {

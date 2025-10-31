@@ -1,6 +1,6 @@
 package com.example.aichat.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -8,10 +8,11 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.core.view.WindowCompat
 
 private val DarkPalette = darkColorScheme(
     primary = Color(0xFF7C5CFF),
@@ -39,18 +40,23 @@ private val AppShapes = Shapes(
 )
 
 @Composable
-fun AIChatTheme(
-    useDarkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun AIChatTheme(content: @Composable () -> Unit) {
     val colorScheme = DarkPalette
     val view = LocalView.current
-    val systemUiController = rememberSystemUiController()
+    val window = (view.context as? Activity)?.window
 
     if (!view.isInEditMode) {
         SideEffect {
-            systemUiController.setStatusBarColor(colorScheme.background, darkIcons = false)
-            systemUiController.setNavigationBarColor(colorScheme.background, darkIcons = false)
+            window?.let {
+                @Suppress("DEPRECATION")
+                run {
+                    it.statusBarColor = colorScheme.background.toArgb()
+                    it.navigationBarColor = colorScheme.background.toArgb()
+                }
+                val controller = WindowCompat.getInsetsController(it, view)
+                controller.isAppearanceLightStatusBars = false
+                controller.isAppearanceLightNavigationBars = false
+            }
         }
     }
 

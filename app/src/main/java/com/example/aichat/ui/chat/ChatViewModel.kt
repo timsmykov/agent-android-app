@@ -1,9 +1,9 @@
 package com.example.aichat.ui.chat
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -170,16 +170,13 @@ class ChatViewModel @Inject constructor(
                     }
 
                     override fun onRmsChanged(rmsdB: Float) {
-                        val normalized = (rmsdB + 2) / 10f
-                        feedVad(normalized)
+                        val normalized = ((rmsdB + 2) / 10f).coerceIn(0f, 1f)
+                        _voiceFrame.value = _voiceFrame.value.copy(amplitude = normalized)
                     }
 
                     override fun onBufferReceived(buffer: ByteArray?) = Unit
 
-                    override fun onEndOfSpeech() {
-                        setVoiceState(VoiceState.Thinking)
-                        submitVoiceMessage()
-                    }
+                    override fun onEndOfSpeech() = Unit
 
                     override fun onError(error: Int) {
                         Timber.w("Speech error $error")
@@ -257,10 +254,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun onComposerGhostConsumed() {
-        updateState { copy(ghostText = null) }
-    }
-
     fun onModeSelected(mode: InteractionMode) {
         if (_uiState.value.mode == mode) return
         updateState { copy(mode = mode) }
@@ -333,7 +326,7 @@ class ChatViewModel @Inject constructor(
         analyzerJob = viewModelScope.launch {
             audioAnalyzer.frames().collect { frame ->
                 _voiceFrame.value = frame
-                val detection = vad.evaluate(frame.amplitude, System.currentTimeMillis())
+                val detection = vad.evaluate(frame.amplitude, SystemClock.elapsedRealtime())
                 if (detection.started) {
                     setVoiceState(VoiceState.Listening)
                 }
@@ -355,15 +348,12 @@ class ChatViewModel @Inject constructor(
     private fun submitVoiceMessage(force: Boolean = false) {
         val text = voiceBuffer.toString().trim()
         if (text.isEmpty()) {
-            if (!force) {
-                updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
-            }
             if (force) {
                 speechRecognizer?.stopListening()
-                voiceBuffer.clear()
                 stopAnalyzer()
-                updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
             }
+            voiceBuffer.clear()
+            updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
             return
         }
         if (voiceSubmitted) return
@@ -379,16 +369,6 @@ class ChatViewModel @Inject constructor(
         updateState { copy(voiceState = state) }
     }
 
-    private fun feedVad(amplitude: Float) {
-        val detection = vad.evaluate(amplitude, System.currentTimeMillis())
-        if (detection.started) {
-            setVoiceState(VoiceState.Listening)
-        }
-        if (detection.ended) {
-            submitVoiceMessage()
-        }
-    }
-
     private fun emitToast(@StringRes res: Int) {
         viewModelScope.launch {
             _events.emit(UiEvent.Toast(context.getString(res)))
@@ -399,6 +379,7 @@ class ChatViewModel @Inject constructor(
         super.onCleared()
         stopAnalyzer()
         speechRecognizer?.destroy()
+        speechRecognizer = null
     }
 
     data class ChatUiState(
@@ -415,9 +396,6 @@ class ChatViewModel @Inject constructor(
         data class Toast(val message: String) : UiEvent()
     }
 
-    enum class VoiceState { Idle, Listening, Thinking, Speaking }
+    enum class VoiceState { Idle, Listening, Thinking }
     enum class InteractionMode { Chat, Voice }
 }
-
-val ChatViewModel.hasMicrophonePermissionState: StateFlow<Boolean>
-    get() = hasMicrophonePermission

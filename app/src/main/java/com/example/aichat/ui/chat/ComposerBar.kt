@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardVoice
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,7 +73,6 @@ fun ComposerBar(
                             tint = when (voiceState) {
                                 VoiceState.Listening -> MaterialTheme.colorScheme.secondary
                                 VoiceState.Thinking -> MaterialTheme.colorScheme.primary
-                                VoiceState.Speaking -> MaterialTheme.colorScheme.primary
                                 VoiceState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
@@ -81,7 +80,7 @@ fun ComposerBar(
                     val canSend = input.isNotBlank() && !isSending
                     IconButton(onClick = { if (canSend) onSend() }, enabled = canSend) {
                         Icon(
-                            imageVector = Icons.Default.Send,
+                            imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = null,
                             tint = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )

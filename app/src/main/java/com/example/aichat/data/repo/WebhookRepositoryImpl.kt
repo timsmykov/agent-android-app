@@ -1,6 +1,7 @@
 package com.example.aichat.data.repo
 
 import com.example.aichat.BuildConfig
+import android.os.Build
 import com.example.aichat.core.Result
 import com.example.aichat.data.api.ApiService
 import com.example.aichat.domain.model.ChatMessage
@@ -21,7 +22,7 @@ class WebhookRepositoryImpl @Inject constructor(
 ) : WebhookRepository {
 
     override suspend fun send(message: ChatMessage, sessionId: String): Result<WebhookResponse> {
-        val payload = WebhookPayload.fromChatMessage(message, sessionId)
+        val payload = buildPayload(message, sessionId)
         val url = if (BuildConfig.N8N_MODE == "prod") BuildConfig.N8N_PROD_URL else BuildConfig.N8N_TEST_URL
 
         return try {
@@ -46,6 +47,33 @@ class WebhookRepositoryImpl @Inject constructor(
             Timber.e(ex, "Webhook send failed")
             Result.Error(ex)
         }
+    }
+
+    private fun buildPayload(message: ChatMessage, sessionId: String): WebhookPayload {
+        val manufacturer = Build.MANUFACTURER?.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() }
+        val model = Build.MODEL.takeIf { it.isNotBlank() }
+        val deviceLabel = listOfNotNull(manufacturer, model)
+            .joinToString(separator = " ")
+            .ifBlank { "Android" }
+        val osVersion = Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString()
+        val userAgent = "Android/$osVersion (${deviceLabel})"
+        val lang = java.util.Locale.getDefault().language.ifBlank { "ru" }
+
+        return WebhookPayload(
+            message = WebhookPayload.PayloadMessage(
+                id = message.id,
+                text = message.text,
+                role = message.role.name.lowercase(),
+                ts = message.timestamp
+            ),
+            meta = WebhookPayload.PayloadMeta(
+                client = "android",
+                sessionId = sessionId,
+                device = deviceLabel,
+                userAgent = userAgent,
+                lang = lang
+            )
+        )
     }
 
     private fun mapJson(element: JsonElement, code: Int): WebhookResponse? = try {

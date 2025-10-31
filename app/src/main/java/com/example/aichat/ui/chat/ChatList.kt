@@ -33,8 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.aichat.domain.model.ChatMessage
 import com.example.aichat.domain.model.MessageStatus
@@ -151,15 +149,6 @@ private fun MessageBubble(
                             Text("Повторить", color = MaterialTheme.colorScheme.onSecondary)
                         }
                     }
-                }
-                if (message.isGhost) {
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Start,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
                 }
             }
         }

@@ -3,7 +3,9 @@ package com.example.aichat.ui.chat
 import android.view.MotionEvent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -23,16 +25,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -49,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.graphics.Brush
@@ -273,15 +271,46 @@ private fun VoiceModePanel(
     onHoldStart: () -> Unit,
     onHoldEnd: (Boolean) -> Unit
 ) {
-    VoiceHoldButton(
-        state = state,
-        frame = frame,
-        onPressStart = onHoldStart,
-        onPressEnd = { onHoldEnd(false) },
-        onPressCancel = { onHoldEnd(true) },
-        modifier = Modifier
-            .size(240.dp)
+    var isPressing by remember { mutableStateOf(false) }
+    val hintAlpha by animateFloatAsState(
+        targetValue = if (isPressing) 0f else 0.6f,
+        animationSpec = tween(
+            durationMillis = 220,
+            easing = FastOutSlowInEasing
+        ),
+        label = "voiceHintAlpha"
     )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        VoiceHoldButton(
+            state = state,
+            frame = frame,
+            onPressStart = onHoldStart,
+            onPressEnd = { onHoldEnd(false) },
+            onPressCancel = { onHoldEnd(true) },
+            onPressStateChange = { isPressing = it },
+            modifier = Modifier.size(240.dp)
+        )
+
+        val hint = when (state) {
+            ChatViewModel.VoiceState.Idle -> stringResource(id = R.string.voice_hold_hint)
+            ChatViewModel.VoiceState.Listening -> stringResource(id = R.string.voice_release_hint)
+            ChatViewModel.VoiceState.Thinking -> stringResource(id = R.string.thinking)
+        }
+
+        if (hintAlpha > 0.01f) {
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.alpha(hintAlpha)
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -292,6 +321,7 @@ private fun VoiceHoldButton(
     onPressStart: () -> Unit,
     onPressEnd: () -> Unit,
     onPressCancel: () -> Unit,
+    onPressStateChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -325,16 +355,18 @@ private fun VoiceHoldButton(
                 .pointerInteropFilter { event: MotionEvent ->
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            if (state == ChatViewModel.VoiceState.Thinking || state == ChatViewModel.VoiceState.Speaking) {
+                            if (state == ChatViewModel.VoiceState.Thinking) {
                                 return@pointerInteropFilter true
                             }
                             isPressed = true
+                            onPressStateChange(true)
                             onPressStart()
                             true
                         }
                         MotionEvent.ACTION_UP -> {
                             if (isPressed) {
                                 isPressed = false
+                                onPressStateChange(false)
                                 onPressEnd()
                             }
                             true
@@ -342,6 +374,7 @@ private fun VoiceHoldButton(
                         MotionEvent.ACTION_CANCEL -> {
                             if (isPressed) {
                                 isPressed = false
+                                onPressStateChange(false)
                                 onPressCancel()
                             }
                             true
@@ -354,18 +387,6 @@ private fun VoiceHoldButton(
                 state = displayState,
                 frame = frame,
                 modifier = Modifier.fillMaxSize()
-            )
-
-            Icon(
-                imageVector = when (state) {
-                    ChatViewModel.VoiceState.Idle -> Icons.Rounded.Mic
-                    ChatViewModel.VoiceState.Listening -> Icons.Rounded.Stop
-                    ChatViewModel.VoiceState.Thinking -> Icons.Rounded.Stop
-                    ChatViewModel.VoiceState.Speaking -> Icons.Filled.GraphicEq
-                },
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.align(Alignment.Center)
             )
         }
     }
