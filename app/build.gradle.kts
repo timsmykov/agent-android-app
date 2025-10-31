@@ -30,8 +30,8 @@ android {
         applicationId = "com.example.aichat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.2.0"
 
         vectorDrawables.useSupportLibrary = true
 
@@ -105,7 +105,7 @@ firebaseAppDistribution {
     appId = project.findProperty("FIREBASE_APP_ID") as String? ?: "1:611670654610:android:5b1d9a87666f1460ccf04b"
     (project.findProperty("FIREBASE_TESTERS") as String?)?.let { testers = it }
     (project.findProperty("FIREBASE_GROUPS") as String?)?.let { groups = it }
-    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "Chat & voice mode toggle update"
+    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "1.2: revamped voice orb visuals, manual hold-to-record, domain/http cleanup"
 }
 
 dependencies {
