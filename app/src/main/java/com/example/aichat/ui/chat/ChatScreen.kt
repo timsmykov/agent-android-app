@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -25,12 +26,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -56,12 +60,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aichat.R
-import com.example.aichat.core.audio.AudioAnalyzer
 import com.example.aichat.ui.chat.ChatViewModel.UiEvent
+import com.example.aichat.ui.chat.ChatViewModel.VoiceFrame
 import com.example.aichat.ui.voice.VoiceOrb
 import com.example.aichat.ui.voice.VoiceOverlay
 
@@ -189,6 +194,16 @@ fun ChatScreen(
                 }
             )
         }
+
+        val voiceDraft = uiState.voiceDraft
+        if (uiState.isVoicePreviewVisible && voiceDraft != null) {
+            VoiceTranscriptionDialog(
+                value = voiceDraft,
+                onValueChange = viewModel::onVoiceDraftChange,
+                onDismiss = viewModel::onVoiceDraftDismiss,
+                onConfirm = viewModel::onVoiceDraftConfirm
+            )
+        }
     }
 }
 @Composable
@@ -265,9 +280,61 @@ private fun ModeToggle(
 }
 
 @Composable
+private fun VoiceTranscriptionDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(id = R.string.voice_preview_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(id = R.string.voice_preview_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 160.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    singleLine = false,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        capitalization = KeyboardCapitalization.Sentences
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = stringResource(id = R.string.send))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(id = R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
 private fun VoiceModePanel(
     state: ChatViewModel.VoiceState,
-    frame: AudioAnalyzer.AudioFrame,
+    frame: VoiceFrame,
     onHoldStart: () -> Unit,
     onHoldEnd: (Boolean) -> Unit
 ) {
@@ -317,7 +384,7 @@ private fun VoiceModePanel(
 @Composable
 private fun VoiceHoldButton(
     state: ChatViewModel.VoiceState,
-    frame: AudioAnalyzer.AudioFrame,
+    frame: VoiceFrame,
     onPressStart: () -> Unit,
     onPressEnd: () -> Unit,
     onPressCancel: () -> Unit,
