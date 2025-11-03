@@ -1,19 +1,14 @@
 package com.example.aichat.ui.chat
 
 import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.os.SystemClock
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aichat.R
 import com.example.aichat.core.Result
-import com.example.aichat.core.audio.VoiceActivityDetector
+import com.example.aichat.core.audio.VoiceRecorder
+import com.example.aichat.data.voice.VoskTranscriber
 import com.example.aichat.domain.model.ChatMessage
 import com.example.aichat.domain.model.MessageStatus
 import com.example.aichat.domain.model.Role
@@ -23,10 +18,11 @@ import com.example.aichat.domain.model.WebhookResponse
 import com.example.aichat.domain.usecase.SendMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,12 +32,14 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
-    private val vad: VoiceActivityDetector,
+    private val voiceRecorder: VoiceRecorder,
+    private val voskTranscriber: VoskTranscriber,
     @ApplicationContext private val context: Context,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
@@ -66,11 +64,11 @@ class ChatViewModel @Inject constructor(
     private val _voiceFrame = MutableStateFlow(VoiceFrame())
     val voiceFrame: StateFlow<VoiceFrame> = _voiceFrame.asStateFlow()
 
-    private var speechRecognizer: SpeechRecognizer? = null
-
-    private var voiceBuffer = StringBuilder()
-    private var voiceSubmitted = false
+    private var recorderSession: VoiceRecorder.Session? = null
+    private var transcriptionSession: VoskTranscriber.Session? = null
+    private var transcriptionCompletion: CompletableDeferred<Unit>? = null
     private var lastVoiceFrame = VoiceFrame()
+    private val transcriptBuffer = StringBuilder()
 
     fun askForMicrophonePermission() {
         viewModelScope.launch {
@@ -93,9 +91,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun resetChat(preserveMode: Boolean = true) {
-        speechRecognizer?.cancel()
-        voiceBuffer.clear()
-        voiceSubmitted = false
+        cancelVoiceSessions()
         _messages.clear()
         sessionId = newSessionId()
         lastVoiceFrame = VoiceFrame()
@@ -120,9 +116,7 @@ class ChatViewModel @Inject constructor(
 
         val message = ChatMessage(
             text = prepared.text,
-            role = prepared.role,
-            metadata = prepared.metadata,
-            tags = prepared.tags
+            role = prepared.role
         )
         appendMessage(message)
         updateState { copy(input = "", isSending = true) }
@@ -149,21 +143,16 @@ class ChatViewModel @Inject constructor(
             val note = lines.drop(1).joinToString("\n").trim()
             val resolvedTitle = title.ifBlank { DEFAULT_NOTION_TITLE }
 
-            val metadata = mutableMapOf(
-                "command" to "notion.add",
-                "notion.title" to resolvedTitle
-            )
-            if (note.isNotEmpty()) {
-                metadata["notion.note"] = note
-            }
-            if (body.isNotEmpty()) {
-                metadata["notion.raw"] = body
-            }
+            val text = buildString {
+                append(resolvedTitle)
+                if (note.isNotEmpty()) {
+                    append("\n")
+                    append(note)
+                }
+            }.trim()
 
             return PreparedMessage(
-                text = if (body.isNotEmpty()) body else resolvedTitle,
-                metadata = metadata,
-                tags = listOf("notion", "task"),
+                text = if (text.isNotEmpty()) text else resolvedTitle,
                 role = Role.USER
             )
         }
@@ -186,97 +175,63 @@ class ChatViewModel @Inject constructor(
     }
 
     fun startVoiceInput() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            emitToast(R.string.voice_not_supported)
-            return
-        }
         if (!_hasMicrophonePermission.value) {
             askForMicrophonePermission()
             return
         }
+        if (recorderSession != null) return
 
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-                setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) {
-                        voiceBuffer.clear()
-                        vad.reset()
-                        lastVoiceFrame = VoiceFrame()
-                        _voiceFrame.value = lastVoiceFrame
-                        setVoiceState(VoiceState.Listening)
-                    }
-
-                    override fun onBeginningOfSpeech() {
-                        setVoiceState(VoiceState.Listening)
-                    }
-
-                    override fun onRmsChanged(rmsdB: Float) {
-                        val amplitude = ((rmsdB + 2f) / 10f).coerceIn(0f, 1f)
-                        val frame = VoiceFrame(
-                            amplitude = (lastVoiceFrame.amplitude * 0.6f + amplitude * 0.4f).coerceIn(0f, 1f),
-                            centroid = (lastVoiceFrame.centroid * 0.7f + amplitude * 0.3f).coerceIn(0f, 1f)
-                        )
-                        lastVoiceFrame = frame
-                        _voiceFrame.value = frame
-
-                        val detection = vad.evaluate(amplitude, SystemClock.elapsedRealtime())
-                        if (detection.started) {
-                            setVoiceState(VoiceState.Listening)
-                        }
-                        if (detection.ended) {
-                            setVoiceState(VoiceState.Thinking)
-                            submitVoiceMessage()
-                        }
-                    }
-
-                    override fun onBufferReceived(buffer: ByteArray?) = Unit
-
-                    override fun onEndOfSpeech() = Unit
-
-                    override fun onError(error: Int) {
-                        Timber.w("Speech error $error")
-                        emitToast(R.string.voice_error)
-                        stopVoiceInput()
-                    }
-
-                    override fun onResults(results: Bundle?) {
-                        val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                        if (!text.isNullOrEmpty()) {
-                            voiceBuffer.clear()
-                            voiceBuffer.append(text)
-                            submitVoiceMessage()
-                        }
-                    }
-
-                    override fun onPartialResults(partialResults: Bundle?) {
-                        val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: return
-                        voiceBuffer.clear()
-                        voiceBuffer.append(text)
-                        updateState { copy(ghostText = text) }
-                    }
-
-                    override fun onEvent(eventType: Int, params: Bundle?) = Unit
-                })
-            }
+        updateState {
+            copy(
+                ghostText = null,
+                voiceDraft = null,
+                isVoicePreviewVisible = false,
+                voiceState = VoiceState.Listening
+            )
         }
-
-        val targetLocale = Locale("ru", "RU")
-        val localeTag = targetLocale.toLanguageTag()
-        val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, localeTag)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, localeTag)
-            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        }
-
-        voiceBuffer.clear()
-        voiceSubmitted = false
-        vad.reset()
         lastVoiceFrame = VoiceFrame()
         _voiceFrame.value = lastVoiceFrame
-        speechRecognizer?.startListening(recognizerIntent)
-        setVoiceState(VoiceState.Listening)
+        transcriptBuffer.clear()
+        transcriptionCompletion = CompletableDeferred()
+
+        val transcriber = voskTranscriber.start(
+            scope = viewModelScope,
+            onPartial = { partial ->
+                val prefix = transcriptBuffer.toString().trim()
+                val addition = partial.trim()
+                val display = listOf(prefix, addition)
+                    .filter { it.isNotBlank() }
+                    .joinToString(separator = " ")
+                    .trim()
+                updateState { copy(ghostText = display.takeUnless { it.isBlank() }) }
+            },
+            onFinal = { final ->
+                handleFinalTranscript(final)
+            },
+            onError = { throwable ->
+                handleVoiceTranscriptionError(throwable)
+            }
+        )
+        transcriptionSession = transcriber
+
+        val session = voiceRecorder.start(
+            scope = viewModelScope,
+            onChunk = { chunk ->
+                transcriber.offer(chunk.data)
+                updateVoiceFrame(chunk.amplitude, chunk.centroid)
+            },
+            onError = { throwable ->
+                handleVoiceTranscriptionError(throwable)
+            }
+        )
+        recorderSession = session
+        if (session === VoiceRecorder.Session.EMPTY) {
+            recorderSession = null
+            transcriptionSession?.cancel()
+            transcriptionSession = null
+            cancelVoiceSessions()
+            emitToast(R.string.voice_error)
+        }
     }
 
     fun stopVoiceInput() {
@@ -284,29 +239,43 @@ class ChatViewModel @Inject constructor(
     }
 
     fun cancelVoiceInput() {
-        speechRecognizer?.stopListening()
-        speechRecognizer?.cancel()
-        vad.reset()
-        voiceBuffer.clear()
-        voiceSubmitted = true
-        lastVoiceFrame = VoiceFrame()
-        _voiceFrame.value = lastVoiceFrame
-        updateState {
-            copy(
-                ghostText = null,
-                voiceState = VoiceState.Idle,
-                voiceDraft = null,
-                isVoicePreviewVisible = false
-            )
-        }
+        cancelVoiceSessions()
     }
 
     fun finishVoiceInput() {
-        if (voiceSubmitted && voiceBuffer.isEmpty()) {
-            updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+        if (recorderSession == null && transcriptionSession == null) {
             return
         }
-        submitVoiceMessage(force = true)
+        setVoiceState(VoiceState.Thinking)
+        lastVoiceFrame = VoiceFrame()
+        _voiceFrame.value = lastVoiceFrame
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                recorderSession?.stop()
+            } finally {
+                recorderSession = null
+            }
+
+            val activeTranscriber = transcriptionSession
+            if (activeTranscriber != null) {
+                runCatching { activeTranscriber.finish() }
+                transcriptionSession = null
+            }
+
+            val completion = transcriptionCompletion
+            completion?.let {
+                withTimeoutOrNull(2_500L) {
+                    runCatching { it.await() }.getOrNull()
+                }
+            }
+            transcriptionCompletion = null
+
+            withContext(Dispatchers.Main) {
+                if (!_uiState.value.isVoicePreviewVisible) {
+                    showTranscriptionResult()
+                }
+            }
+        }
     }
 
     fun onVoiceDraftChange(value: String) {
@@ -314,10 +283,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun onVoiceDraftDismiss() {
-        voiceBuffer.clear()
-        voiceSubmitted = true
-        lastVoiceFrame = VoiceFrame()
-        _voiceFrame.value = lastVoiceFrame
+        transcriptBuffer.clear()
         updateState {
             copy(
                 ghostText = null,
@@ -326,6 +292,8 @@ class ChatViewModel @Inject constructor(
                 isVoicePreviewVisible = false
             )
         }
+        lastVoiceFrame = VoiceFrame()
+        _voiceFrame.value = lastVoiceFrame
     }
 
     fun onVoiceDraftConfirm() {
@@ -334,7 +302,6 @@ class ChatViewModel @Inject constructor(
             onVoiceDraftDismiss()
             return
         }
-        voiceSubmitted = true
         updateState {
             copy(
                 input = draft,
@@ -433,44 +400,92 @@ class ChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.reducer()
     }
 
-    private fun submitVoiceMessage(force: Boolean = false) {
-        val text = voiceBuffer.toString().trim()
-        if (text.isEmpty()) {
-            if (force) {
-                speechRecognizer?.stopListening()
-                vad.reset()
-                lastVoiceFrame = VoiceFrame()
-                _voiceFrame.value = lastVoiceFrame
-            }
-            voiceBuffer.clear()
-            updateState {
-                copy(
-                    ghostText = null,
-                    voiceState = VoiceState.Idle,
-                    voiceDraft = null,
-                    isVoicePreviewVisible = false
-                )
-            }
-            return
-        }
-        if (voiceSubmitted) return
-        voiceSubmitted = true
-        speechRecognizer?.stopListening()
-        voiceBuffer.clear()
+    private fun cancelVoiceSessions() {
+        recorderSession?.cancel()
+        recorderSession = null
+        transcriptionSession?.cancel()
+        transcriptionSession = null
+        transcriptionCompletion?.cancel()
+        transcriptionCompletion = null
+        transcriptBuffer.clear()
         lastVoiceFrame = VoiceFrame()
         _voiceFrame.value = lastVoiceFrame
         updateState {
             copy(
                 ghostText = null,
                 voiceState = VoiceState.Idle,
-                voiceDraft = text,
-                isVoicePreviewVisible = true
+                voiceDraft = null,
+                isVoicePreviewVisible = false
             )
         }
     }
 
+    private fun handleVoiceTranscriptionError(throwable: Throwable) {
+        Timber.e(throwable, "Voice transcription failed")
+        cancelVoiceSessions()
+        emitToast(R.string.voice_error)
+    }
+
+    private fun handleFinalTranscript(text: String?) {
+        val cleaned = text?.trim().orEmpty()
+        if (cleaned.isNotBlank()) {
+            val current = transcriptBuffer.toString()
+            when {
+                current.isBlank() -> {
+                    transcriptBuffer.clear()
+                    transcriptBuffer.append(cleaned)
+                }
+                cleaned.startsWith(current) -> {
+                    transcriptBuffer.clear()
+                    transcriptBuffer.append(cleaned)
+                }
+                current.startsWith(cleaned) -> {
+                    // ignore shorter duplicate chunk
+                }
+                else -> {
+                    if (!current.endsWith(cleaned)) {
+                        if (transcriptBuffer.isNotEmpty()) transcriptBuffer.append(' ')
+                        transcriptBuffer.append(cleaned)
+                    }
+                }
+            }
+        }
+        transcriptionCompletion?.let { if (!it.isCompleted) it.complete(Unit) }
+        val combined = transcriptBuffer.toString().trim()
+        if (recorderSession != null) {
+            updateState { copy(ghostText = combined.takeUnless { it.isBlank() }) }
+        } else {
+            showTranscriptionResult()
+        }
+    }
+
+    private fun updateVoiceFrame(amplitude: Float, centroid: Float) {
+        val smoothedAmplitude = (lastVoiceFrame.amplitude * 0.6f + amplitude * 0.4f).coerceIn(0f, 1f)
+        val smoothedCentroid = (lastVoiceFrame.centroid * 0.7f + centroid * 0.3f).coerceIn(0f, 1f)
+        lastVoiceFrame = VoiceFrame(smoothedAmplitude, smoothedCentroid)
+        _voiceFrame.value = lastVoiceFrame
+    }
+
     private fun setVoiceState(state: VoiceState) {
         updateState { copy(voiceState = state) }
+    }
+
+    private fun showTranscriptionResult() {
+        val combined = transcriptBuffer.toString().trim()
+        lastVoiceFrame = VoiceFrame()
+        _voiceFrame.value = lastVoiceFrame
+        if (combined.isNotBlank()) {
+            updateState {
+                copy(
+                    ghostText = null,
+                    voiceState = VoiceState.Idle,
+                    voiceDraft = combined,
+                    isVoicePreviewVisible = true
+                )
+            }
+        } else {
+            updateState { copy(ghostText = null, voiceState = VoiceState.Idle) }
+        }
     }
 
     private fun emitToast(@StringRes res: Int) {
@@ -481,8 +496,7 @@ class ChatViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
+        cancelVoiceSessions()
     }
 
     data class ChatUiState(
@@ -511,8 +525,6 @@ class ChatViewModel @Inject constructor(
 
     private data class PreparedMessage(
         val text: String,
-        val metadata: Map<String, String> = emptyMap(),
-        val tags: List<String> = emptyList(),
         val role: Role = Role.USER
     )
 

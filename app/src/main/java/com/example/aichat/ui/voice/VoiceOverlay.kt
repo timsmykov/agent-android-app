@@ -40,7 +40,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.aichat.R
-import com.example.aichat.core.audio.AudioAnalyzer
 import com.example.aichat.ui.chat.ChatViewModel
 import kotlin.math.PI
 import kotlin.math.sin
@@ -48,7 +47,7 @@ import kotlin.math.sin
 @Composable
 fun VoiceOverlay(
     state: ChatViewModel.VoiceState,
-    frame: AudioAnalyzer.AudioFrame,
+    frame: ChatViewModel.VoiceFrame,
     ghostText: String?
 ) {
     Surface(
@@ -104,7 +103,7 @@ fun VoiceOverlay(
 @Composable
 fun VoiceOrb(
     state: ChatViewModel.VoiceState,
-    frame: AudioAnalyzer.AudioFrame,
+    frame: ChatViewModel.VoiceFrame,
     modifier: Modifier = Modifier
 ) {
     val amplitudeTarget = frame.amplitude.coerceIn(0f, 1f)

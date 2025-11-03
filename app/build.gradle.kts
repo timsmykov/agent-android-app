@@ -30,14 +30,15 @@ android {
         applicationId = "com.example.aichat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 5
+        versionName = "1.2.2"
 
         vectorDrawables.useSupportLibrary = true
 
         buildConfigField("String", "N8N_TEST_URL", "\"https://timsmykov.app.n8n.cloud/webhook-test/a3b7e817-1b56-4722-8f9f-9266b7d91946\"")
         buildConfigField("String", "N8N_PROD_URL", "\"https://timsmykov.app.n8n.cloud/webhook/a3b7e817-1b56-4722-8f9f-9266b7d91946\"")
         buildConfigField("String", "N8N_MODE", "\"$resolvedN8nMode\"")
+        buildConfigField("String", "VOSK_WS_URL", "\"ws://89.47.163.243:2700\"")
     }
 
     signingConfigs {

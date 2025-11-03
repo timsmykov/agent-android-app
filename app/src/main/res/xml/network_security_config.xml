@@ -6,6 +6,9 @@
             <certificates src="user" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">89.47.163.243</domain>
+    </domain-config>
     <debug-overrides>
         <trust-anchors>
             <certificates src="system" />

@@ -37,7 +37,7 @@ URL и режим задаются через `BuildConfig`:
 - **Networking**: Retrofit + kotlinx.serialization (строго JSON, заголовок `Content-Type: application/json`).
 - **Domain**: `domain/model`, `domain/repo`, `domain/usecase`.
 - **UI**: Compose (экран чата, composer, voice overlay, markdown-рендерер).
-- **Voice**: SpeechRecognizer (ASR), TextToSpeech (TTS), собственные VAD и FFT/AudioAnalyzer.
+- **Voice**: собственный AudioRecord-пайплайн + Vosk (WebSocket ASR), визуализация и FFT/Voice Orb.
 - **Графика**: OpenGL ES 2.0 Voice Orb (шейдеры из `res/raw`), Canvas fallback.
 
 ## Тестирование
