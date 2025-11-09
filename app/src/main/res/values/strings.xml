@@ -37,6 +37,7 @@
     <string name="status_success_task">Задача успешно добавлена.</string>
     <string name="status_success_event">Событие успешно создано.</string>
     <string name="status_success_email">E-mail успешно отправлен.</string>
+    <string name="status_acknowledged">Запрос получен, ожидаю подтверждения.</string>
     <string name="status_error_generic">Произошла ошибка. Попробуйте ещё раз.</string>
     <string name="status_error_with_code">Произошла ошибка (код %1$d).</string>
     <string name="status_error_with_reason">Произошла ошибка: %1$s</string>

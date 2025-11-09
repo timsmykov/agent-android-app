@@ -17,6 +17,7 @@ import com.example.aichat.domain.model.Role
 import com.example.aichat.domain.model.PlanItem
 import com.example.aichat.domain.model.SourceLink
 import com.example.aichat.domain.model.WebhookResponse
+import com.example.aichat.domain.model.WorkflowResult
 import com.example.aichat.domain.repo.ConversationRepository
 import com.example.aichat.domain.usecase.SendMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -378,6 +379,7 @@ class ChatViewModel @Inject constructor(
                 mode = InteractionMode.Chat
             )
         }
+        setVoiceState(VoiceState.Idle)
         sendMessage()
     }
 
@@ -427,7 +429,7 @@ class ChatViewModel @Inject constructor(
                 )
             }
 
-        val resolvedText = resolveSuccessMessage(outbound, response)
+        val resolvedText = resolveSuccessMessage(outbound, response, workflow)
         val agentMessage = ChatMessage(
             role = Role.AGENT,
             text = resolvedText,
@@ -598,7 +600,8 @@ class ChatViewModel @Inject constructor(
 
     private fun resolveSuccessMessage(
         outbound: ChatMessage?,
-        response: WebhookResponse
+        response: WebhookResponse,
+        workflow: WorkflowResult?
     ): String {
         val candidate = sanitizeWebhookText(response.resolveText())
             ?: sanitizeWebhookText(response.status)
@@ -610,7 +613,9 @@ class ChatViewModel @Inject constructor(
             IntentType.TASK -> context.getString(R.string.status_success_task)
             IntentType.EVENT -> context.getString(R.string.status_success_event)
             IntentType.EMAIL -> context.getString(R.string.status_success_email)
-            IntentType.UNKNOWN -> context.getString(R.string.status_success_generic)
+            IntentType.UNKNOWN -> context.getString(
+                if (workflow == null) R.string.status_acknowledged else R.string.status_success_generic
+            )
         }
     }
 
