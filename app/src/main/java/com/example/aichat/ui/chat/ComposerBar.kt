@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardVoice
@@ -24,8 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import com.example.aichat.R
 import com.example.aichat.ui.chat.ChatViewModel.VoiceState
 
@@ -47,6 +50,7 @@ fun ComposerBar(
             .background(background, RoundedCornerShape(22.dp))
             .padding(horizontal = 16.dp, vertical = 16.dp)
     ) {
+        val canSend = input.isNotBlank() && !isSending
         OutlinedTextField(
             value = input,
             onValueChange = onTextChange,
@@ -62,6 +66,10 @@ fun ComposerBar(
             ),
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(
+                onSend = { if (canSend) onSend() }
+            ),
             trailingIcon = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
@@ -77,7 +85,6 @@ fun ComposerBar(
                             }
                         )
                     }
-                    val canSend = input.isNotBlank() && !isSending
                     IconButton(onClick = { if (canSend) onSend() }, enabled = canSend) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,

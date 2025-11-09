@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.aichat.R
 import com.example.aichat.core.Result
 import com.example.aichat.core.audio.VoiceRecorder
+import com.example.aichat.data.repo.WebhookRepositoryImpl
 import com.example.aichat.data.voice.ParakeetTranscriber
 import com.example.aichat.domain.model.ChatMessage
 import com.example.aichat.domain.model.ConversationSummary
@@ -132,8 +133,8 @@ class ChatViewModel @Inject constructor(
     }
 
     fun openConversation(conversationId: String) {
+        hideHistory()
         if (conversationId == _uiState.value.selectedConversationId) {
-            hideHistory()
             return
         }
         viewModelScope.launch {
@@ -404,8 +405,8 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun handleSuccess(messageId: String, response: WebhookResponse) {
+        val outbound = _messages.firstOrNull { it.id == messageId }
         updateMessage(messageId) { copy(status = MessageStatus.SENT) }
-        val resolvedText = response.resolveText() ?: "HTTP ${response.httpCode}"
         val workflow = response.primaryResult
         val plan = workflow?.plan.orEmpty()
             .mapNotNull { item ->
@@ -425,6 +426,7 @@ class ChatViewModel @Inject constructor(
                 )
             }
 
+        val resolvedText = resolveSuccessMessage(outbound, response)
         val agentMessage = ChatMessage(
             role = Role.AGENT,
             text = resolvedText,
@@ -447,6 +449,12 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _events.emit(UiEvent.Toast("Webhook error: $readable"))
         }
+        val agentMessage = ChatMessage(
+            role = Role.AGENT,
+            text = resolveErrorMessage(throwable),
+            status = MessageStatus.RECEIVED
+        )
+        appendMessage(agentMessage)
     }
 
     private fun appendMessage(message: ChatMessage, persist: Boolean = true) {
@@ -587,6 +595,60 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun resolveSuccessMessage(
+        outbound: ChatMessage?,
+        response: WebhookResponse
+    ): String {
+        val candidate = sanitizeWebhookText(response.resolveText())
+            ?: sanitizeWebhookText(response.status)
+            ?: sanitizeWebhookText(response.message)
+        if (candidate != null) {
+            return candidate
+        }
+        return when (detectIntent(outbound?.text)) {
+            IntentType.TASK -> context.getString(R.string.status_success_task)
+            IntentType.EVENT -> context.getString(R.string.status_success_event)
+            IntentType.EMAIL -> context.getString(R.string.status_success_email)
+            IntentType.UNKNOWN -> context.getString(R.string.status_success_generic)
+        }
+    }
+
+    private fun sanitizeWebhookText(text: String?): String? =
+        text?.takeIf { it.isNotBlank() }
+            ?.takeUnless { it.startsWith("http", ignoreCase = true) }
+
+    private fun detectIntent(text: String?): IntentType {
+        if (text.isNullOrBlank()) return IntentType.UNKNOWN
+        val normalized = text.lowercase()
+        return when {
+            TASK_KEYWORDS.any { it in normalized } -> IntentType.TASK
+            EVENT_KEYWORDS.any { it in normalized } -> IntentType.EVENT
+            EMAIL_KEYWORDS.any { it in normalized } -> IntentType.EMAIL
+            else -> IntentType.UNKNOWN
+        }
+    }
+
+    private fun resolveErrorMessage(throwable: Throwable): String {
+        val default = context.getString(R.string.status_error_generic)
+        return when (throwable) {
+            is WebhookRepositoryImpl.HttpException -> {
+                val builder = StringBuilder()
+                builder.append(context.getString(R.string.status_error_with_code, throwable.code))
+                val body = throwable.body.takeIf { it.isNotBlank() }
+                if (body != null) {
+                    builder.append('\n')
+                    builder.append(context.getString(R.string.status_error_with_reason, body))
+                }
+                builder.toString()
+            }
+            else -> {
+                val reason = throwable.message?.takeIf { it.isNotBlank() }
+                    ?: return default
+                context.getString(R.string.status_error_with_reason, reason)
+            }
+        }
+    }
+
     private fun emitToast(@StringRes res: Int) {
         viewModelScope.launch {
             _events.emit(UiEvent.Toast(context.getString(res)))
@@ -630,8 +692,13 @@ class ChatViewModel @Inject constructor(
         val role: Role = Role.USER
     )
 
+    private enum class IntentType { TASK, EVENT, EMAIL, UNKNOWN }
+
     private companion object {
         private const val NOTION_COMMAND_PREFIX = "/notion"
         private const val DEFAULT_NOTION_TITLE = "Новая задача"
+        private val TASK_KEYWORDS = listOf("задач", "task", "todo", "дело", "notion")
+        private val EVENT_KEYWORDS = listOf("ивент", "event", "встреч", "meeting", "calendar", "митинг")
+        private val EMAIL_KEYWORDS = listOf("email", "e-mail", "почт", "письм", "mail", "letter")
     }
 }

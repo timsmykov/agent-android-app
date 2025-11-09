@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -68,6 +69,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -87,6 +90,8 @@ fun ChatScreen(
     onRequestPermission: () -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val uiState by viewModel.uiState.collectAsState()
     val voiceFrame by viewModel.voiceFrame.collectAsState()
 
@@ -153,7 +158,8 @@ fun ChatScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding(),
+                        .navigationBarsPadding()
+                        .imePadding(),
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0x33131828)
                     ),
@@ -171,8 +177,16 @@ fun ChatScreen(
                             isSending = uiState.isSending,
                             voiceState = uiState.voiceState,
                             onTextChange = viewModel::onMessageChanged,
-                            onSend = viewModel::sendMessage,
-                            onStartVoice = viewModel::startVoiceInput,
+                            onSend = {
+                                focusManager.clearFocus(force = true)
+                                keyboardController?.hide()
+                                viewModel.sendMessage()
+                            },
+                            onStartVoice = {
+                                focusManager.clearFocus(force = true)
+                                keyboardController?.hide()
+                                viewModel.startVoiceInput()
+                            },
                             onStopVoice = viewModel::stopVoiceInput
                         )
                     }

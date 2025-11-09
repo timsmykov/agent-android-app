@@ -33,4 +33,11 @@
     <string name="history_delete">Удалить</string>
     <string name="history_untitled">Без названия</string>
     <string name="history_meta">%1$d сообщений • %2$s</string>
+    <string name="status_success_generic">Запрос выполнен успешно.</string>
+    <string name="status_success_task">Задача успешно добавлена.</string>
+    <string name="status_success_event">Событие успешно создано.</string>
+    <string name="status_success_email">E-mail успешно отправлен.</string>
+    <string name="status_error_generic">Произошла ошибка. Попробуйте ещё раз.</string>
+    <string name="status_error_with_code">Произошла ошибка (код %1$d).</string>
+    <string name="status_error_with_reason">Произошла ошибка: %1$s</string>
 </resources>
