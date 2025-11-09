@@ -374,7 +374,8 @@ class ChatViewModel @Inject constructor(
                 ghostText = null,
                 voiceState = VoiceState.Thinking,
                 voiceDraft = null,
-                isVoicePreviewVisible = false
+                isVoicePreviewVisible = false,
+                mode = InteractionMode.Chat
             )
         }
         sendMessage()

@@ -51,9 +51,10 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val builder = OkHttpClient.Builder()
-            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(90, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(90, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
 
         if (BuildConfig.DEBUG) {
             val logger = HttpLoggingInterceptor().apply {
