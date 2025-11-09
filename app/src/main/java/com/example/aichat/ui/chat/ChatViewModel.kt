@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.aichat.R
 import com.example.aichat.core.Result
 import com.example.aichat.core.audio.VoiceRecorder
-import com.example.aichat.data.voice.VoskTranscriber
+import com.example.aichat.data.voice.ParakeetTranscriber
 import com.example.aichat.domain.model.ChatMessage
 import com.example.aichat.domain.model.MessageStatus
 import com.example.aichat.domain.model.Role
@@ -39,7 +39,7 @@ import timber.log.Timber
 class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val voiceRecorder: VoiceRecorder,
-    private val voskTranscriber: VoskTranscriber,
+    private val parakeetTranscriber: ParakeetTranscriber,
     @ApplicationContext private val context: Context,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
@@ -65,7 +65,7 @@ class ChatViewModel @Inject constructor(
     val voiceFrame: StateFlow<VoiceFrame> = _voiceFrame.asStateFlow()
 
     private var recorderSession: VoiceRecorder.Session? = null
-    private var transcriptionSession: VoskTranscriber.Session? = null
+    private var transcriptionSession: ParakeetTranscriber.Session? = null
     private var transcriptionCompletion: CompletableDeferred<Unit>? = null
     private var lastVoiceFrame = VoiceFrame()
     private val transcriptBuffer = StringBuilder()
@@ -194,7 +194,7 @@ class ChatViewModel @Inject constructor(
         transcriptBuffer.clear()
         transcriptionCompletion = CompletableDeferred()
 
-        val transcriber = voskTranscriber.start(
+        val transcriber = parakeetTranscriber.start(
             scope = viewModelScope,
             onPartial = { partial ->
                 val prefix = transcriptBuffer.toString().trim()

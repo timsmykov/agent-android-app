@@ -31,13 +31,23 @@ URL и режим задаются через `BuildConfig`:
 
 Изменить значения URL можно в `app/build.gradle.kts` (секция `defaultConfig`).
 
+## Parakeet ASR сервис
+
+- `BuildConfig.ASR_URL` указывает на HTTP endpoint (`/transcribe?sample_rate=16000`), который принимает PCM 16 kHz mono поток и возвращает JSON `{ "text": "..." }`.
+- На сервере запущен FastAPI-сервис (`/root/asr-service/app.py`), который грузит модель `istupakov/parakeet-tdt-0.6b-v3-onnx` и обслуживается через systemd (`parakeet-asr.service`).
+- Проверить стенд можно так:
+
+```bash
+curl -s -X POST --data-binary @clip.wav "http://89.47.163.243:2700/transcribe?sample_rate=16000"
+```
+
 ## Архитектура
 
 - **DI**: Hilt (`App.kt`, `di/AppModule.kt`).
 - **Networking**: Retrofit + kotlinx.serialization (строго JSON, заголовок `Content-Type: application/json`).
 - **Domain**: `domain/model`, `domain/repo`, `domain/usecase`.
 - **UI**: Compose (экран чата, composer, voice overlay, markdown-рендерер).
-- **Voice**: собственный AudioRecord-пайплайн + Vosk (WebSocket ASR), визуализация и FFT/Voice Orb.
+- **Voice**: собственный AudioRecord-пайплайн + Parakeet ONNX ASR (HTTP), визуализация и FFT/Voice Orb.
 - **Графика**: OpenGL ES 2.0 Voice Orb (шейдеры из `res/raw`), Canvas fallback.
 
 ## Тестирование

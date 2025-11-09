@@ -5,7 +5,7 @@ import com.example.aichat.core.audio.AudioAnalyzer
 import com.example.aichat.core.audio.VoiceRecorder
 import com.example.aichat.data.api.ApiService
 import com.example.aichat.data.repo.WebhookRepositoryImpl
-import com.example.aichat.data.voice.VoskTranscriber
+import com.example.aichat.data.voice.ParakeetTranscriber
 import com.example.aichat.domain.repo.WebhookRepository
 import com.example.aichat.domain.usecase.SendMessageUseCase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -108,11 +108,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideVoskTranscriber(
+    fun provideParakeetTranscriber(
         okHttpClient: OkHttpClient,
         json: Json,
         ioDispatcher: CoroutineDispatcher
-    ): VoskTranscriber = VoskTranscriber(okHttpClient, json, ioDispatcher)
+    ): ParakeetTranscriber = ParakeetTranscriber(okHttpClient, json, ioDispatcher)
 
     @Provides
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO

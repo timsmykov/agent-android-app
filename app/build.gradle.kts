@@ -30,15 +30,15 @@ android {
         applicationId = "com.example.aichat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.2.4"
+        versionCode = 8
+        versionName = "1.3.0"
 
         vectorDrawables.useSupportLibrary = true
 
         buildConfigField("String", "N8N_TEST_URL", "\"http://89.47.163.243:5678/webhook/a3b7e817-1b56-4722-8f9f-9266b7d91946\"")
         buildConfigField("String", "N8N_PROD_URL", "\"http://89.47.163.243:5678/webhook/a3b7e817-1b56-4722-8f9f-9266b7d91946\"")
         buildConfigField("String", "N8N_MODE", "\"$resolvedN8nMode\"")
-        buildConfigField("String", "VOSK_WS_URL", "\"ws://89.47.163.243:2700\"")
+        buildConfigField("String", "ASR_URL", "\"http://89.47.163.243:2700/transcribe?sample_rate=16000\"")
     }
 
     signingConfigs {
@@ -106,7 +106,7 @@ firebaseAppDistribution {
     appId = project.findProperty("FIREBASE_APP_ID") as String? ?: "1:611670654610:android:5b1d9a87666f1460ccf04b"
     (project.findProperty("FIREBASE_TESTERS") as String?)?.let { testers = it }
     (project.findProperty("FIREBASE_GROUPS") as String?)?.let { groups = it }
-    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "1.2.4: switch to new n8n webhook host"
+    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "1.3.0: switch to Parakeet ASR"
 }
 
 dependencies {
