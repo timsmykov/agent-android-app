@@ -1,5 +1,6 @@
 package com.example.aichat.ui.chat
 
+import android.text.format.DateUtils
 import android.view.MotionEvent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -8,6 +9,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,15 +27,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -65,6 +75,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aichat.R
+import com.example.aichat.domain.model.ConversationSummary
 import com.example.aichat.ui.chat.ChatViewModel.UiEvent
 import com.example.aichat.ui.chat.ChatViewModel.VoiceFrame
 import com.example.aichat.ui.voice.VoiceOrb
@@ -107,6 +118,7 @@ fun ChatScreen(
             AssistantHeader(
                 mode = uiState.mode,
                 onModeChange = viewModel::onModeSelected,
+                onHistoryClick = viewModel::showHistory,
                 onNewChat = { viewModel.resetChat() },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -204,12 +216,23 @@ fun ChatScreen(
                 onConfirm = viewModel::onVoiceDraftConfirm
             )
         }
+
+        if (uiState.isHistoryVisible) {
+            ConversationHistoryDialog(
+                conversations = uiState.conversations,
+                selectedConversationId = uiState.selectedConversationId,
+                onSelect = viewModel::openConversation,
+                onDelete = viewModel::deleteConversation,
+                onDismiss = viewModel::hideHistory
+            )
+        }
     }
 }
 @Composable
 private fun AssistantHeader(
     mode: ChatViewModel.InteractionMode,
     onModeChange: (ChatViewModel.InteractionMode) -> Unit,
+    onHistoryClick: () -> Unit,
     onNewChat: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -226,9 +249,21 @@ private fun AssistantHeader(
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
             )
 
-            if (mode == ChatViewModel.InteractionMode.Chat) {
-                TextButton(onClick = onNewChat) {
-                    Text(text = stringResource(id = R.string.new_chat))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onHistoryClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.History,
+                        contentDescription = stringResource(id = R.string.history),
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                if (mode == ChatViewModel.InteractionMode.Chat) {
+                    TextButton(onClick = onNewChat) {
+                        Text(text = stringResource(id = R.string.new_chat))
+                    }
                 }
             }
         }
@@ -330,6 +365,129 @@ private fun VoiceTranscriptionDialog(
         }
     )
 }
+
+@Composable
+private fun ConversationHistoryDialog(
+    conversations: List<ConversationSummary>,
+    selectedConversationId: String?,
+    onSelect: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(id = R.string.history_title),
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            if (conversations.isEmpty()) {
+                Text(
+                    text = stringResource(id = R.string.history_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(conversations) { item ->
+                        HistoryItem(
+                            summary = item,
+                            isSelected = item.id == selectedConversationId,
+                            onSelect = { onSelect(item.id) },
+                            onDelete = { onDelete(item.id) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(android.R.string.ok))
+            }
+        }
+    )
+}
+
+@Composable
+private fun HistoryItem(
+    summary: ConversationSummary,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val accent = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = accent.copy(alpha = 0.6f)
+        ),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = summary.title.ifBlank { stringResource(id = R.string.history_untitled) },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                summary.lastMessagePreview?.takeIf { it.isNotBlank() }?.let { preview ->
+                    Text(
+                        text = preview,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                val timestamp = formatTimestamp(summary.updatedAt)
+                Text(
+                    text = stringResource(
+                        id = R.string.history_meta,
+                        summary.messageCount,
+                        timestamp
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = stringResource(id = R.string.history_delete),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+private fun formatTimestamp(updatedAt: Long): String =
+    DateUtils.getRelativeTimeSpanString(
+        updatedAt,
+        System.currentTimeMillis(),
+        DateUtils.MINUTE_IN_MILLIS
+    ).toString()
 
 @Composable
 private fun VoiceModePanel(

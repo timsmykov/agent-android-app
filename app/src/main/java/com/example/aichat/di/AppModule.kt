@@ -1,17 +1,25 @@
 package com.example.aichat.di
 
+import android.content.Context
+import androidx.room.Room
 import com.example.aichat.BuildConfig
 import com.example.aichat.core.audio.AudioAnalyzer
 import com.example.aichat.core.audio.VoiceRecorder
 import com.example.aichat.data.api.ApiService
+import com.example.aichat.data.local.AppDatabase
+import com.example.aichat.data.local.dao.ConversationDao
+import com.example.aichat.data.local.dao.MessageDao
+import com.example.aichat.data.repo.ConversationRepositoryImpl
 import com.example.aichat.data.repo.WebhookRepositoryImpl
 import com.example.aichat.data.voice.ParakeetTranscriber
+import com.example.aichat.domain.repo.ConversationRepository
 import com.example.aichat.domain.repo.WebhookRepository
 import com.example.aichat.domain.usecase.SendMessageUseCase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -94,6 +102,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideConversationRepository(
+        conversationDao: ConversationDao,
+        messageDao: MessageDao,
+        json: Json
+    ): ConversationRepository = ConversationRepositoryImpl(conversationDao, messageDao, json)
+
+    @Provides
+    @Singleton
     fun provideSendMessageUseCase(
         repository: WebhookRepository
     ): SendMessageUseCase = SendMessageUseCase(repository)
@@ -113,6 +129,22 @@ object AppModule {
         json: Json,
         ioDispatcher: CoroutineDispatcher
     ): ParakeetTranscriber = ParakeetTranscriber(okHttpClient, json, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideDatabase(
+        @ApplicationContext context: Context
+    ): AppDatabase = Room.databaseBuilder(
+        context,
+        AppDatabase::class.java,
+        "conversation_history.db"
+    ).build()
+
+    @Provides
+    fun provideConversationDao(database: AppDatabase): ConversationDao = database.conversationDao()
+
+    @Provides
+    fun provideMessageDao(database: AppDatabase): MessageDao = database.messageDao()
 
     @Provides
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO

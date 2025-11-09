@@ -4,10 +4,13 @@ import java.util.UUID
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@Serializable
 enum class Role { USER, AGENT, SYSTEM }
 
+@Serializable
 enum class MessageStatus { PENDING, SENT, RECEIVED, FAILED }
 
+@Serializable
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val text: String,
@@ -19,12 +22,14 @@ data class ChatMessage(
     val sources: List<SourceLink> = emptyList()
 )
 
+@Serializable
 data class PlanItem(
     val id: String = UUID.randomUUID().toString(),
     val title: String,
     val isDone: Boolean = false
 )
 
+@Serializable
 data class SourceLink(
     val title: String,
     val url: String
@@ -97,4 +102,12 @@ data class WorkflowPlanItem(
 data class WorkflowSource(
     val title: String,
     val url: String
+)
+
+data class ConversationSummary(
+    val id: String,
+    val title: String,
+    val lastMessagePreview: String?,
+    val updatedAt: Long,
+    val messageCount: Int
 )

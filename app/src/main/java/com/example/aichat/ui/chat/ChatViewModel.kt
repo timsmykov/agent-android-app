@@ -10,11 +10,13 @@ import com.example.aichat.core.Result
 import com.example.aichat.core.audio.VoiceRecorder
 import com.example.aichat.data.voice.ParakeetTranscriber
 import com.example.aichat.domain.model.ChatMessage
+import com.example.aichat.domain.model.ConversationSummary
 import com.example.aichat.domain.model.MessageStatus
 import com.example.aichat.domain.model.Role
 import com.example.aichat.domain.model.PlanItem
 import com.example.aichat.domain.model.SourceLink
 import com.example.aichat.domain.model.WebhookResponse
+import com.example.aichat.domain.repo.ConversationRepository
 import com.example.aichat.domain.usecase.SendMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -40,6 +43,7 @@ class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val voiceRecorder: VoiceRecorder,
     private val parakeetTranscriber: ParakeetTranscriber,
+    private val conversationRepository: ConversationRepository,
     @ApplicationContext private val context: Context,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
@@ -69,6 +73,35 @@ class ChatViewModel @Inject constructor(
     private var transcriptionCompletion: CompletableDeferred<Unit>? = null
     private var lastVoiceFrame = VoiceFrame()
     private val transcriptBuffer = StringBuilder()
+    private var restoredInitialConversation = false
+    private var lastKnownConversations: Set<String> = emptySet()
+
+    init {
+        _uiState.value = _uiState.value.copy(selectedConversationId = sessionId)
+        viewModelScope.launch {
+            conversationRepository.observeConversations().collect { summaries ->
+                val current = _uiState.value.selectedConversationId
+                val ids = summaries.map { it.id }.toSet()
+                val removedCurrent = current != null &&
+                    current in lastKnownConversations &&
+                    current !in ids
+                updateState { copy(conversations = summaries) }
+                when {
+                    !restoredInitialConversation && summaries.isNotEmpty() -> {
+                        restoredInitialConversation = true
+                        loadConversationInternal(summaries.first().id)
+                    }
+                    removedCurrent && summaries.isNotEmpty() -> {
+                        loadConversationInternal(summaries.first().id)
+                    }
+                    removedCurrent -> {
+                        resetChat()
+                    }
+                }
+                lastKnownConversations = ids
+            }
+        }
+    }
 
     fun askForMicrophonePermission() {
         viewModelScope.launch {
@@ -90,6 +123,36 @@ class ChatViewModel @Inject constructor(
         updateState { copy(input = value) }
     }
 
+    fun showHistory() {
+        updateState { copy(isHistoryVisible = true) }
+    }
+
+    fun hideHistory() {
+        updateState { copy(isHistoryVisible = false) }
+    }
+
+    fun openConversation(conversationId: String) {
+        if (conversationId == _uiState.value.selectedConversationId) {
+            hideHistory()
+            return
+        }
+        viewModelScope.launch {
+            loadConversationInternal(conversationId)
+        }
+    }
+
+    fun deleteConversation(conversationId: String) {
+        val current = _uiState.value.selectedConversationId
+        viewModelScope.launch(ioDispatcher) {
+            conversationRepository.deleteConversation(conversationId)
+            if (current == conversationId) {
+                withContext(Dispatchers.Main) {
+                    resetChat()
+                }
+            }
+        }
+    }
+
     fun resetChat(preserveMode: Boolean = true) {
         cancelVoiceSessions()
         _messages.clear()
@@ -105,7 +168,9 @@ class ChatViewModel @Inject constructor(
                 voiceState = VoiceState.Idle,
                 voiceDraft = null,
                 isVoicePreviewVisible = false,
-                mode = if (preserveMode) mode else InteractionMode.Chat
+                mode = if (preserveMode) mode else InteractionMode.Chat,
+                selectedConversationId = sessionId,
+                isHistoryVisible = false
             )
         }
     }
@@ -384,9 +449,15 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun appendMessage(message: ChatMessage) {
+    private fun appendMessage(message: ChatMessage, persist: Boolean = true) {
         _messages.add(message)
         updateState { copy(messages = _messages.toList()) }
+        if (persist) {
+            val conversationId = sessionId
+            viewModelScope.launch(ioDispatcher) {
+                conversationRepository.appendMessage(conversationId, message)
+            }
+        }
     }
 
     private fun updateMessage(id: String, transform: ChatMessage.() -> ChatMessage) {
@@ -394,6 +465,34 @@ class ChatViewModel @Inject constructor(
         if (index == -1) return
         _messages[index] = _messages[index].transform()
         updateState { copy(messages = _messages.toList()) }
+        val updated = _messages[index]
+        viewModelScope.launch(ioDispatcher) {
+            conversationRepository.updateMessage(sessionId, updated)
+        }
+    }
+
+    private suspend fun loadConversationInternal(conversationId: String) {
+        cancelVoiceSessions()
+        val messages = withContext(ioDispatcher) {
+            conversationRepository.loadConversation(conversationId)
+        }
+        _messages.clear()
+        _messages.addAll(messages)
+        sessionId = conversationId
+        transcriptBuffer.clear()
+        updateState {
+            copy(
+                messages = _messages.toList(),
+                input = "",
+                isSending = false,
+                ghostText = null,
+                voiceState = VoiceState.Idle,
+                voiceDraft = null,
+                isVoicePreviewVisible = false,
+                selectedConversationId = conversationId,
+                isHistoryVisible = false
+            )
+        }
     }
 
     private fun updateState(reducer: ChatUiState.() -> ChatUiState) {
@@ -501,6 +600,7 @@ class ChatViewModel @Inject constructor(
 
     data class ChatUiState(
         val messages: List<ChatMessage> = emptyList(),
+        val conversations: List<ConversationSummary> = emptyList(),
         val input: String = "",
         val isSending: Boolean = false,
         val ghostText: String? = null,
@@ -508,7 +608,9 @@ class ChatViewModel @Inject constructor(
         val voiceState: VoiceState = VoiceState.Idle,
         val voiceDraft: String? = null,
         val isVoicePreviewVisible: Boolean = false,
-        val mode: InteractionMode = InteractionMode.Chat
+        val mode: InteractionMode = InteractionMode.Chat,
+        val selectedConversationId: String? = null,
+        val isHistoryVisible: Boolean = false
     )
 
     sealed class UiEvent {

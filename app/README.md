@@ -48,6 +48,7 @@ curl -s -X POST --data-binary @clip.wav "http://89.47.163.243:2700/transcribe?sa
 - **Domain**: `domain/model`, `domain/repo`, `domain/usecase`.
 - **UI**: Compose (экран чата, composer, voice overlay, markdown-рендерер).
 - **Voice**: собственный AudioRecord-пайплайн + Parakeet ONNX ASR (HTTP), визуализация и FFT/Voice Orb.
+- **История**: Room (`conversation_history.db`) хранит диалоги и сообщения; через иконку History можно открыть, переименовать (первое сообщение) или удалить диалог.
 - **Графика**: OpenGL ES 2.0 Voice Orb (шейдеры из `res/raw`), Canvas fallback.
 
 ## Тестирование

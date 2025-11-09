@@ -27,4 +27,10 @@
     <string name="new_chat">Новый чат</string>
     <string name="voice_preview_title">Проверьте сообщение</string>
     <string name="voice_preview_message">Транскрипция готова. Отредактируйте текст перед отправкой.</string>
+    <string name="history">История</string>
+    <string name="history_title">История задач</string>
+    <string name="history_empty">Список пуст. Отправьте сообщение, чтобы начать новый диалог.</string>
+    <string name="history_delete">Удалить</string>
+    <string name="history_untitled">Без названия</string>
+    <string name="history_meta">%1$d сообщений • %2$s</string>
 </resources>

@@ -30,8 +30,8 @@ android {
         applicationId = "com.example.aichat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.3.0"
+        versionCode = 9
+        versionName = "1.4.0"
 
         vectorDrawables.useSupportLibrary = true
 
@@ -106,7 +106,7 @@ firebaseAppDistribution {
     appId = project.findProperty("FIREBASE_APP_ID") as String? ?: "1:611670654610:android:5b1d9a87666f1460ccf04b"
     (project.findProperty("FIREBASE_TESTERS") as String?)?.let { testers = it }
     (project.findProperty("FIREBASE_GROUPS") as String?)?.let { groups = it }
-    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "1.3.0: switch to Parakeet ASR"
+    releaseNotes = project.findProperty("FIREBASE_RELEASE_NOTES") as String? ?: "1.4.0: add on-device chat history"
 }
 
 dependencies {
@@ -146,6 +146,10 @@ dependencies {
     implementation("com.jakewharton.timber:timber:5.0.1")
 
     implementation("androidx.annotation:annotation:1.8.2")
+
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
