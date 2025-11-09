@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -110,43 +111,45 @@ private fun MessageBubble(
                 .background(gradient)
                 .padding(18.dp)
         ) {
-            Column(modifier = Modifier.align(Alignment.Center)) {
-                if (!isUser) {
-                    Text(
-                        text = message.role.name.lowercase().replaceFirstChar { it.titlecase() },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                }
-                if (message.role == Role.AGENT || message.role == Role.SYSTEM) {
-                    AgentReply(
-                        message = message,
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                            .padding(4.dp)
-                    )
-                } else {
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                AnimatedVisibility(visible = message.status == MessageStatus.FAILED, enter = fadeIn(), exit = fadeOut()) {
-                    Column(modifier = Modifier.padding(top = 8.dp)) {
+            SelectionContainer(modifier = Modifier.align(Alignment.Center)) {
+                Column {
+                    if (!isUser) {
                         Text(
-                            text = "Не удалось отправить",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
+                            text = message.role.name.lowercase().replaceFirstChar { it.titlecase() },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(bottom = 4.dp)
                         )
-                        ElevatedButton(
-                            onClick = { onRetry(message.id) },
-                            colors = ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            Text("Повторить", color = MaterialTheme.colorScheme.onSecondary)
+                    }
+                    if (message.role == Role.AGENT || message.role == Role.SYSTEM) {
+                        AgentReply(
+                            message = message,
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                .padding(4.dp)
+                        )
+                    } else {
+                        Text(
+                            text = message.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    AnimatedVisibility(visible = message.status == MessageStatus.FAILED, enter = fadeIn(), exit = fadeOut()) {
+                        Column(modifier = Modifier.padding(top = 8.dp)) {
+                            Text(
+                                text = "Не удалось отправить",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            ElevatedButton(
+                                onClick = { onRetry(message.id) },
+                                colors = ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Text("Повторить", color = MaterialTheme.colorScheme.onSecondary)
+                            }
                         }
                     }
                 }
